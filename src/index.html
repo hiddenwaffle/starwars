@@ -454,6 +454,17 @@
     background: var(--bg-soft);
   }
   .palette .sep { color: transparent; font-size: 12px; letter-spacing: 0.1em; }
+  .key-hint {
+    border-bottom: 2px solid var(--phos-bright);
+    padding-bottom: 1px;
+  }
+  .key-tag {
+    font-size: 0.8em;
+    opacity: 0.5;
+    margin-left: 2px;
+  }
+  .key-tag::before { content: '['; }
+  .key-tag::after { content: ']'; }
 
   footer {
     color: var(--phos-dim);
@@ -542,39 +553,39 @@
     </div>
 
     <div class="palette pre-game" id="palette">
-      <button class="more-stats-btn" id="more-stats-btn" type="button">MORE STATS</button>
-      <button class="palette-restart-btn" id="palette-restart-btn" type="button">RESTART</button>
-      <button data-cmd="LOOK">LOOK</button>
-      <button data-cmd="HELP">?</button>
+      <button class="more-stats-btn" id="more-stats-btn" type="button" data-key="M"><span class="key-hint">M</span>ORE STATS</button>
+      <button class="palette-restart-btn" id="palette-restart-btn" type="button" data-key="R"><span class="key-hint">R</span>ESTART</button>
+      <button data-cmd="LOOK" data-key="L"><span class="key-hint">L</span>OOK</button>
+      <button data-cmd="HELP" data-key="?"><span class="key-hint">?</span></button>
       <span class="sep">|</span>
       <div class="menu-wrap" id="wrap-get">
-        <button id="get-trigger">GET ▾</button>
+        <button id="get-trigger" data-key="G"><span class="key-hint">G</span>ET ▾</button>
         <div class="menu" id="get-menu">
-          <button data-cmd="GET SHIELD">SHIELD</button>
-          <button data-cmd="GET BLASTER">BLASTER</button>
-          <button data-cmd="GET ALL">ALL</button>
+          <button data-cmd="GET SHIELD" data-key="S"><span class="key-hint">S</span>HIELD</button>
+          <button data-cmd="GET BLASTER" data-key="B"><span class="key-hint">B</span>LASTER</button>
+          <button data-cmd="GET ALL" data-key="A"><span class="key-hint">A</span>LL</button>
         </div>
       </div>
       <div class="menu-wrap" id="wrap-drop">
-        <button id="drop-trigger">DROP ▾</button>
+        <button id="drop-trigger" data-key="D"><span class="key-hint">D</span>ROP ▾</button>
         <div class="menu" id="drop-menu">
-          <button data-cmd="DROP SHIELD">SHIELD</button>
-          <button data-cmd="DROP BLASTER">BLASTER</button>
+          <button data-cmd="DROP SHIELD" data-key="S"><span class="key-hint">S</span>HIELD</button>
+          <button data-cmd="DROP BLASTER" data-key="B"><span class="key-hint">B</span>LASTER</button>
         </div>
       </div>
       <span class="sep">|</span>
-      <button data-cmd="SABRE">SABRE</button>
+      <button data-cmd="SABRE" data-key="S"><span class="key-hint">S</span>ABRE</button>
       <div class="menu-wrap" id="wrap-attack">
-        <button class="menu-trigger">ATTACK ▾</button>
+        <button class="menu-trigger" data-key="A"><span class="key-hint">A</span>TTACK ▾</button>
         <div class="menu">
-          <button data-cmd="ATTACK SABRE">SABRE</button>
-          <button data-cmd="ATTACK BLASTER">BLASTER</button>
-          <button data-cmd="ATTACK HANDS">HANDS</button>
+          <button data-cmd="ATTACK SABRE" data-key="S"><span class="key-hint">S</span>ABRE</button>
+          <button data-cmd="ATTACK BLASTER" data-key="B"><span class="key-hint">B</span>LASTER</button>
+          <button data-cmd="ATTACK HANDS" data-key="H"><span class="key-hint">H</span>ANDS</button>
         </div>
       </div>
-      <button id="auto-attack-btn" type="button">Auto-Attack</button>
+      <button id="auto-attack-btn" type="button" data-key="Q">Auto-Attack <span class="key-tag">Q</span></button>
       <div class="menu-wrap" id="wrap-charge">
-        <button class="menu-trigger">CHARGE ▾</button>
+        <button class="menu-trigger" data-key="C"><span class="key-hint">C</span>HARGE ▾</button>
         <div class="menu charge-menu">
           <div class="charge-cols">
             <div class="charge-col" data-charge-col="princess">
@@ -600,7 +611,7 @@
       </div>
       <span class="sep">|</span>
       <div class="menu-wrap" id="wrap-order">
-        <button class="menu-trigger">ORDER ▾</button>
+        <button class="menu-trigger" data-key="O"><span class="key-hint">O</span>RDER ▾</button>
         <div class="menu">
           <button data-cmd="ORDER PRINCESS SHOOT">PRINCESS: SHOOT</button>
           <button data-cmd="ORDER PRINCESS ATTACK">PRINCESS: ATTACK</button>
@@ -611,7 +622,7 @@
         </div>
       </div>
       <div class="menu-wrap" id="wrap-give">
-        <button class="menu-trigger">GIVE ▾</button>
+        <button class="menu-trigger" data-key="V">GI<span class="key-hint">V</span>E ▾</button>
         <div class="menu">
           <button data-cmd="GIVE PRINCESS SHIELD">PRINCESS: SHIELD</button>
           <button data-cmd="GIVE PRINCESS BLASTER">PRINCESS: BLASTER</button>
@@ -620,12 +631,12 @@
         </div>
       </div>
       <span class="sep">|</span>
-      <button data-cmd="FLEE">FLEE</button>
-      <button data-cmd="TOSS">TOSS</button>
-      <button data-cmd="SWING">SWING</button>
+      <button data-cmd="FLEE" data-key="F"><span class="key-hint">F</span>LEE</button>
+      <button data-cmd="TOSS" data-key="T"><span class="key-hint">T</span>OSS</button>
+      <button data-cmd="SWING" data-key="W">S<span class="key-hint">W</span>ING</button>
       <span class="sep">|</span>
-      <button data-cmd="SABOTAGE">SABOTAGE</button>
-      <button data-cmd="TAKE-OFF">TAKE-OFF</button>
+      <button data-cmd="SABOTAGE" data-key="B">SA<span class="key-hint">B</span>OTAGE</button>
+      <button data-cmd="TAKE-OFF" data-key="T"><span class="key-hint">T</span>AKE-OFF</button>
     </div>
   </div>
 

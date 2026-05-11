@@ -1962,6 +1962,42 @@ function wireUi(): void {
     }
   });
 
+  // Keyboard shortcuts for palette buttons. Each button with a data-key
+  // attribute can be triggered by pressing that key. Open menus take
+  // priority so e.g. pressing S with the ATTACK menu open fires
+  // ATTACK SABRE rather than toggling the sabre.
+  document.addEventListener('keydown', e => {
+    if ((document.activeElement?.tagName ?? '') === 'INPUT') return;
+    if (messages.querySelector('.term-cursor')) return;
+    const key = e.key.length === 1 ? e.key.toUpperCase() : '';
+    if (!key) return;
+
+    // Priority 1: button inside an open menu
+    const openMenu = palette.querySelector('.menu.open');
+    if (openMenu) {
+      const btn = openMenu.querySelector(
+        'button[data-key="' + key + '"]'
+      ) as HTMLElement | null;
+      if (btn && btn.style.display !== 'none') {
+        e.preventDefault();
+        btn.click();
+        return;
+      }
+    }
+
+    // Priority 2: top-level palette buttons (not inside a .menu)
+    for (const el of palette.querySelectorAll('button[data-key="' + key + '"]')) {
+      const btn = el as HTMLElement;
+      if (btn.style.display === 'none') continue;
+      if (btn.closest('.menu')) continue;
+      const wrap = btn.closest('.menu-wrap') as HTMLElement | null;
+      if (wrap && wrap.style.display === 'none') continue;
+      e.preventDefault();
+      btn.click();
+      return;
+    }
+  });
+
   const restartBtn = document.getElementById('restart-btn')!;
   const godBtn = document.getElementById('god-btn');
   if (godBtn) godBtn.addEventListener('click', godMode);

@@ -26,9 +26,9 @@ async function run() {
   console.log('auto-attack-btn visible:', autoAttackBtn && autoAttackBtn.style.display !== 'none');
   console.log('auto-attack-btn label:', autoAttackBtn && autoAttackBtn.textContent);
 
-  // Label is static "Auto-Attack" now (no weapon suffix).
-  const label = autoAttackBtn ? autoAttackBtn.textContent : '';
-  const labelOK = label === 'Auto-Attack';
+  // Label starts with "Auto-Attack" (may include a key-hint suffix like [Q]).
+  const label = autoAttackBtn ? autoAttackBtn.textContent.trim() : '';
+  const labelOK = label.startsWith('Auto-Attack');
   console.log('label format OK:', labelOK);
 
   // Click and verify attack fires.
