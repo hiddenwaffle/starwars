@@ -1969,6 +1969,10 @@ function wireUi(): void {
   document.addEventListener('keydown', e => {
     if ((document.activeElement?.tagName ?? '') === 'INPUT') return;
     if (messages.querySelector('.term-cursor')) return;
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.menu.open').forEach(m => m.classList.remove('open'));
+      return;
+    }
     const key = e.key.length === 1 ? e.key.toUpperCase() : '';
     if (!key) return;
 
