@@ -172,7 +172,7 @@ let acceptingMoveInput = false;
 // flow.
 let chargePresets: Record<string, string> | null = null;
 
-function input(prompt: string): Promise<string> {
+function input(prompt: string, autoFocus = false): Promise<string> {
   return new Promise(resolve => {
     out(prompt + '? ');
     const wrap = document.createElement('span');
@@ -185,7 +185,7 @@ function input(prompt: string): Promise<string> {
     wrap.appendChild(inp);
     messages.appendChild(wrap);
     scrollMessagesToBottom();
-    requestAnimationFrame(() => inp.focus());
+    if (autoFocus) requestAnimationFrame(() => inp.focus());
 
     const finish = (value: string) => {
       if (pendingInputResolver !== finish) return;
@@ -2094,7 +2094,7 @@ async function main(): Promise<void> {
   await titleScreen();
   clearMessages();
   nl(); nl(); nl();
-  const name = await input('WHAT IS YOUR NAME');
+  const name = await input('WHAT IS YOUR NAME', true);
   player.name = name || 'CADET';
   await briefing();
   clearMessages();
@@ -2190,10 +2190,15 @@ function fitToViewport(): void {
     const rect = el.getBoundingClientRect();
     designW = rect.width;
     designH = rect.height;
-    // Lock the wrapper's layout size so content changes (palette buttons
-    // hiding/showing, game-over state) never shift the flex centering.
+    // Lock the wrapper and palette layout sizes so content changes
+    // (palette buttons hiding/showing, game-over state) never shift
+    // the flex centering or push the footer around.
     el.style.width = designW + 'px';
     el.style.height = designH + 'px';
+    const pal = document.getElementById('palette');
+    if (pal) {
+      pal.style.height = pal.getBoundingClientRect().height + 'px';
+    }
   }
   const scale = Math.min(window.innerWidth / designW, window.innerHeight / designH);
   el.style.transform = `scale(${scale})`;
