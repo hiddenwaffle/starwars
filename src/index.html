@@ -20,10 +20,17 @@
   * { box-sizing: border-box; }
   body {
     margin: 0;
+    height: 100vh;
+    overflow: hidden;
     background: var(--page);
-    min-height: 100vh;
     color: var(--phos-dim);
     font-family: 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  #game {
+    transform-origin: center center;
     padding: 28px 16px 48px;
     display: flex;
     flex-direction: column;
@@ -54,8 +61,7 @@
       "map term"
       "palette palette";
     gap: 14px;
-    width: 100%;
-    max-width: 860px;
+    width: 860px;
   }
 
   .map-frame {
@@ -344,7 +350,7 @@
     border-radius: 10px;
     padding: 10px 14px;
   }
-  .palette.pre-game { display: none; }
+  .palette.pre-game { visibility: hidden; pointer-events: none; }
   body.game-over .dpad { display: none; }
   body.game-over .palette > *:not(.more-stats-btn):not(.palette-restart-btn) { display: none; }
   .more-stats-btn, .palette-restart-btn { display: none; }
@@ -499,6 +505,7 @@
 </style>
 </head>
 <body>
+  <div id="game">
   <header>
     <div class="title">S T A R &nbsp; W A R S</div>
     <div class="sub">A game by Donald Brown · 1979 · Ported by Anthony Villena · 2026</div>
@@ -628,6 +635,7 @@
     </div>
   </footer>
   <div class="pi-toggle" aria-hidden="true">π</div>
+  </div>
 
 <!-- GAME_SCRIPT -->
 </body>

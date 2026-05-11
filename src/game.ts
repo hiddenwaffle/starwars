@@ -2176,6 +2176,31 @@ function chargeTestSetup(): void {
   updatePalette();
 }
 
+// --- Viewport scaling ---
+// The #game wrapper has a fixed natural size (layout is 860px wide, palette
+// reserves space via visibility:hidden). We measure it once on first call
+// and cache those dimensions so content changes never shift the scale.
+let designW = 0;
+let designH = 0;
+function fitToViewport(): void {
+  const el = document.getElementById('game');
+  if (!el) return;
+  if (designW === 0) {
+    el.style.transform = 'none';
+    const rect = el.getBoundingClientRect();
+    designW = rect.width;
+    designH = rect.height;
+    // Lock the wrapper's layout size so content changes (palette buttons
+    // hiding/showing, game-over state) never shift the flex centering.
+    el.style.width = designW + 'px';
+    el.style.height = designH + 'px';
+  }
+  const scale = Math.min(window.innerWidth / designW, window.innerHeight / designH);
+  el.style.transform = `scale(${scale})`;
+}
+window.addEventListener('resize', fitToViewport);
+fitToViewport();
+
 main().catch(e => {
   console.error(e);
   out('ERROR: ' + e.message); nl();
