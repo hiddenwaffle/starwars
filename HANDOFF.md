@@ -229,7 +229,185 @@ anyone comparing the port against the original source.
 
 ---
 
-## 8. Tests
+## 8. BASIC source internals
+
+Technical notes on the Applesoft BASIC source (`star-wars-1979.bas`). This is
+reference material for understanding the original program's structure when
+comparing it to the JS port.
+
+### 8a. Memory layout (lines 5–6) tied to save/load (6000, 7000)
+
+```
+5 LOMEM: 28672
+6 HIMEM: 36864
+```
+
+`LOMEM:` and `HIMEM:` are Applesoft directives that set where BASIC's
+variables can live. Normally `LOMEM` sits right above the program text and
+`HIMEM` sits at the top of free memory. Setting them explicitly carves out a
+fixed 8192-byte region: `$7000` through `$8FFF`. Variables grow up from
+`$7000`; the string heap grows down from `$9000`.
+
+That's not arbitrary — line 6000 says `BSAVE GAME,A28672,L8192,D2`.
+`28672 = $7000`, `8192 = $2000`. So the entire variable space gets dumped to
+disk as a single binary blob, and `BLOAD` (line 7000) slams it back in.
+Save/restore for free, no per-variable serialization, but it only works
+because the memory boundaries are pinned.
+
+(`BSAVE` and `BLOAD` here are being `PRINT`ed, not executed. The trick is
+that DOS 3.3 watches the cursor for command-like strings, so printing them at
+the prompt triggers DOS to run them. That's the standard DOS-from-BASIC
+idiom.)
+
+### 8b. Embedded 6502 machine code (lines 530–540, 160)
+
+```
+530 FOR P = 770 TO 788: READ A: POKE P,A: NEXT
+540 DATA 173,48,192,136,208,4,198,1,240,8,202,208,246,166,0,76,2,3,96
+```
+
+This pokes 19 bytes of 6502 machine code starting at `$0302` (a small free
+zone in page 3 reserved for user routines). Disassembled:
+
+```
+$0302  AD 30 C0   LDA $C030       ; toggle speaker
+$0305  88         DEY
+$0306  D0 04      BNE $030C
+$0308  C6 01      DEC $01
+$030A  F0 08      BEQ $0314       ; done → RTS
+$030C  CA         DEX
+$030D  D0 F6      BNE $0305
+$030F  A6 00      LDX $00         ; reload pitch
+$0311  4C 02 03   JMP $0302
+$0314  60         RTS
+```
+
+`$C030` is the speaker softswitch — any access to it flips the cone, so a
+tight loop of accesses produces a square wave. Zero-page `$00` holds the pitch
+(toggle period), `$01` holds the duration counter. That's why line 160 does
+`POKE 0,TA: POKE 1,DN: CALL 770`. The variables `CF`, `AB`, `AE`, `DN` are
+"frames," "begin pitch," "end pitch," "duration," sweeping the pitch from `AB`
+to `AE` `CF` times — that's how the game gets sliding tones for blasters and
+explosions.
+
+### 8c. Apple II softswitches and ROM calls
+
+A quick reference for the magic numbers:
+
+- `PEEK(-16384)` is `$C000`, the keyboard data register. High bit set means a
+  key is waiting; the low 7 bits are the ASCII value. `155` is ESC.
+- `POKE -16368,0` is `$C010`, the keyboard strobe — writing here clears the
+  "key ready" flag.
+- `PEEK(-16336)` is `$C030`, the speaker toggle (same one the ML routine
+  uses). Line 2820 is:
+
+```
+2820 CF = PEEK( -16336) - PEEK( -16336) + PEEK( -16336) - PEEK( -16336): RETURN
+```
+
+  That's four speaker toggles in a row to make a click. The arithmetic is
+  meaningless; it exists only because Applesoft needs the PEEKs to be part of
+  an expression. `CF` gets overwritten with garbage, but `CF` is reset before
+  any real use.
+
+- `CALL -868` is `CLREOL` (clear from cursor to end of line) in the monitor
+  ROM. Used everywhere status text is redrawn so leftover characters don't
+  trail.
+- `PEEK(37)` reads `$25` (`CV`), the current cursor row. `POKE 34,...` writes
+  `$22` (`WNDTOP`), the top of the text-scroll window. Lines like
+  `2690 ... POKE 34, PEEK(37)` pin the status display at the top of the screen
+  and let only the area below it scroll. That's how the game keeps the room
+  header/inventory visible while messages roll past underneath.
+- `SPEED= 150` slows the character output rate (255 = full speed). Used for
+  dramatic effect — the rope swinging, the Falcon taking off.
+- `TEXT`, `HOME`, `VTAB`, `HTAB`, `INVERSE`, `NORMAL`, `FLASH` are all
+  standard Applesoft display verbs.
+
+### 8d. Command parser (lines 542, 543, 78, 80)
+
+```
+542 FOR I = 1 TO 14: READ CM$(I): NEXT
+543 DATA GE,D,M,SABR,A,O,GI,L,F,TO,SW,TA,SAB,C
+...
+78 ... FOR C9 = 1 TO 14: IF LEFT$(A$, LEN(CM$(C9))) = CM$(C9) THEN 830
+80 830 ON C9 GOTO 1020,1110,1680,1420,1830,2130,1490,1580,1550,1160,1230,1430,1330,2200
+```
+
+Each entry is the *shortest unique prefix* for a command. The clever bit is
+the ordering: `SABR` (sabre on/off) appears at position 4, but `SAB`
+(sabotage) is at position 13. The parser scans top-down and takes the first
+match, so "SABRE ON" matches `SABR` before the loop ever reaches `SAB`. If
+those were reversed, `SAB` would swallow "SABRE" and you could never toggle
+the sabre. Same kind of thing keeps `GE` (get), `GI` (give) distinct, and
+`TO` (toss) ahead of any future `T`-prefix command.
+
+The dispatch table on line 830 is a 14-way `ON ... GOTO`. Very compact verb
+dispatcher for the era.
+
+### 8e. Packed room-description codes (line 940)
+
+The fifth field of each room, `R(R1,5)`, is a three-digit decimal code that
+encodes the room's description type:
+
+```
+940 R2 = INT(R(R1,5)/100):R3 = INT(R(R1,5)/10) -R2 *10:R4 = R(R1,5) -(100 *R2 +10 *R3): ON R4 GOTO 950,980,990,1000
+```
+
+`R4` (ones digit) is the *kind* of room: named-with-color, corridor section,
+corridor junction, hangar/special, detention cell. `R3` (tens) and `R2`
+(hundreds) are indices into the various description arrays — room types,
+colors, compass directions. So a single integer like `321` decomposes into
+"third entry of one table, second of another, first kind."
+
+The arrays they index were read in lines 480–520: `R$()` (machinery/control),
+`B$()` (rooms: tractor beam, power, weaponry...), `E$()` (command, hangar,
+detention...), `C$()` (colors), `O$()` (positions: west end, middle, east
+end...), `P$()` (directions).
+
+### 8f. Sound-effect "fall-through" pattern (lines 2740–2810)
+
+```
+2740 CF = 4:AB = 1:AE = 10:DN = 5: GOTO 160
+2750 CF = 1:AB = 5:AE = 20:DN = 3: GOTO 160
+...
+```
+
+Each one is a *named sound effect* — caller does `GOSUB 2750` for a blaster,
+`GOSUB 2800` for a sabre swing, etc. Each line ends in `GOTO 160` rather than
+`GOSUB 160`. Line 160 ends in `RETURN`, which pops the GOSUB stack back to
+whoever called the *outer* line (e.g. 2750), not to line 160's nonexistent
+caller. So `GOSUB 2750` -> falls through to `GOTO 160` -> `RETURN` lands back
+at the original `GOSUB 2750` caller. A "tail call" that avoids stacking two
+return addresses.
+
+Line 2780 says `GOSUB 160`, not `GOTO 160`. That's deliberate: after the
+first sound returns, control falls through to line 2790, which plays *another*
+sound before its own `GOTO 160` finally returns. So `GOSUB 2780` plays two
+sounds in sequence (a hit thud and a sweep).
+
+### 8g. FOR-loop escape hack (line 230)
+
+```
+230 FOR A = 1 TO 10: IF PEEK( -16384) = 155 THEN POKE -16368,0: VTAB 13: CALL -868: FOR X = 1 TO 1: FOR A = 1 TO 1
+240 NEXT : NEXT
+```
+
+The title screen scrolls inside two nested `FOR` loops (`X` outer in line 220,
+`A` inner here). If ESC is pressed, the `THEN` branch opens two *new* `FOR`
+loops named `X` and `A`, each bounded `1 TO 1`. The subsequent `NEXT : NEXT`
+on line 240 exits those one-iteration loops, and because Applesoft tracks loop
+variables by name, the *original* `X` and `A` loops have been effectively
+replaced — they never continue. It's a way to "break out" without `GOTO`.
+
+### 8h. The line 1115 DROP typo
+
+Already documented in section 7 ("Known quirks and traps") — see the
+"BASIC DROP typo (line 1115)" entry there. That section covers the bug's
+effect and how the JS port handles it.
+
+---
+
+## 9. Tests
 
 All tests are headless via jsdom. The pattern: load the HTML, evaluate the
 script, drive the input element, assert on the messages/status text. Most
@@ -266,7 +444,7 @@ assert anything and depended on lucky RNG to navigate a long path.
 
 ---
 
-## 9. Dev panel
+## 10. Dev panel
 
 There's a tiny dim `π` glyph in the bottom-right corner. Clicking it
 toggles the visibility of the `CONSOLE MESSAGES` header above the message
@@ -285,7 +463,7 @@ the console.
 
 ---
 
-## 10. Endgame UI
+## 11. Endgame UI
 
 When `gameOver` becomes true and the game loop exits:
 
@@ -308,7 +486,7 @@ to hide everything else.
 
 ---
 
-## 11. Recent session timeline (what was done lately)
+## 12. Recent session timeline (what was done lately)
 
 This list helps you understand what's fresh and what's been stable for a
 while.
@@ -339,7 +517,7 @@ while.
 
 ---
 
-## 12. Backlog (in preferred priority)
+## 13. Backlog (in preferred priority)
 
 When the user comes back wanting more, these are still on the pile:
 
@@ -362,7 +540,7 @@ Don't surface these unprompted; they're for when asked "what's next?"
 
 ---
 
-## 13. Pointers within the code
+## 14. Pointers within the code
 
 For when you need to find something:
 
@@ -382,7 +560,7 @@ expands on much of section 3 above and is the place to skim first.
 
 ---
 
-## 14. The BASIC source
+## 15. The BASIC source
 
 `star-wars-1979.bas` is the original. Don't modify it. To reference a
 specific BASIC line, just `view` the file at that line range; the port's
