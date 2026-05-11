@@ -5,9 +5,10 @@
 // 4. The pi glyph is itself clickable (no pointer-events: none).
 
 const fs = require('fs');
-const { JSDOM } = require('/home/claude/node_modules/jsdom');
+const path = require('path');
+const { JSDOM } = require('jsdom');
 
-const html = fs.readFileSync('/mnt/user-data/outputs/star-wars-1979.html', 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'dist', 'star-wars-1979.html'), 'utf8');
 
 class FakeAudioContext {
   constructor() { this.currentTime = 0; this.destination = {}; this.state = 'running'; }

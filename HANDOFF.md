@@ -30,22 +30,21 @@ even after a kill).
 
 ## 2. Files in the project
 
-You should have:
-
-| File | Purpose |
+| Path | Purpose |
 |------|---------|
-| `star-wars-1979.html` | The whole game in one file. ~2,700 lines. |
+| `src/game.ts` | Game logic — TypeScript, \~2,180 lines. |
+| `src/index.html` | HTML/CSS shell with `<!-- GAME_SCRIPT -->` placeholder. |
+| `build.js` | Build script: compiles TS via esbuild, inlines into HTML. |
+| `dist/star-wars-1979.html` | Built output — self-contained playable game (gitignored). |
 | `star-wars-1979.bas` | The original Applesoft BASIC source. 313 lines. Reference only — never modified. |
 | `tests/test-*.js` | Headless test suite using jsdom. |
+| `tests/run-all.js` | Test runner — executes all active tests sequentially. |
 | `HANDOFF.md` | This document. |
 
-Tests live in `tests/`. To run them: `cd tests && npm install jsdom`, then
-`node test-NAME.js`. Each test is standalone. Most run in 1–3 seconds; the
-fuzzers (`test-aggressive`, `test-rescue-and-kill`) can take 30–120 seconds.
-
-The HTML file references `/home/claude/node_modules/jsdom` in the test files
-from the old environment — **update the require path** when you set up
-locally.
+Commands: `npm run build` compiles and produces `dist/star-wars-1979.html`.
+`npm run typecheck` runs `tsc --noEmit`. `npm test` builds then runs all
+tests. Most tests run in 1–3 seconds; the fuzzers (`test-aggressive`,
+`test-rescue-and-kill`) can take 30–120 seconds.
 
 ---
 
@@ -217,6 +216,16 @@ screen / briefing key-presses count; `ensureAudio()` calls
 `audioCtx.resume()` if suspended. In jsdom tests, a `FakeAudioContext`
 shim is needed (all the tests have one) or the script throws on the first
 SND call.
+
+**BASIC DROP typo (line 1115).** The BASIC source has `MID$ ($,A +1)` on
+line 1115 — every other instance of this pattern reads `MID$ (A$,A +1)`.
+The missing `A` means `DROP SHIELD` or `DROP BLASTER` (typed with a second
+word) would crash the Applesoft interpreter with a SYNTAX ERROR. `DROP`
+alone works fine because GOSUB 3000 returns A=0 and the `IF A >0` guard
+skips the broken MID$. The JS port's `cmdDrop` was written from first
+principles and handles the two-word form correctly, so the bug was
+accidentally fixed by the rewrite. No action needed; noted here for
+anyone comparing the port against the original source.
 
 ---
 

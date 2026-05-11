@@ -1,0 +1,17 @@
+{
+  "name": "star-wars-1979",
+  "version": "1.0.0",
+  "private": true,
+  "description": "JS port of Donald Brown's 1979 Applesoft BASIC text adventure Star Wars",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node build.js --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node tests/run-all.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "jsdom": "^26.0.0",
+    "typescript": "^5.8.0"
+  }
+}

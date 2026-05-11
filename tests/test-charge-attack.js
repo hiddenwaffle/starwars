@@ -1,14 +1,11 @@
-// Verifies the fix for: clicking SABRE in CHARGE while sabre is off
-// dropped the user into a retry loop the buttons couldn't satisfy.
-// New behavior: SABRE buttons in both ATTACK and CHARGE are hidden
-// while sabre is off, so the user can't enter that path via clicks.
-// The typed-command path is unchanged (CHARGE SABRE typed while off
-// still triggers BASIC's retry prompt — that fidelity is intentional).
+// Verify that selecting princess: ATTACK results in princess attacking,
+// not "doing nothing". Picks: princess=A, player=H (hands), wookie=N.
 
 const fs = require('fs');
-const { JSDOM } = require('/home/claude/node_modules/jsdom');
+const path = require('path');
+const { JSDOM } = require('jsdom');
 
-const html = fs.readFileSync('/mnt/user-data/outputs/star-wars-1979.html', 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'dist', 'star-wars-1979.html'), 'utf8');
 
 class FakeAudioContext {
   constructor() { this.currentTime = 0; this.destination = {}; this.state = 'running'; }
@@ -57,7 +54,6 @@ async function run() {
     await wait(80);
   }
 
-  // Title + name + briefings.
   await wait(60);
   document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Space', bubbles: true }));
   await wait(60);
@@ -67,7 +63,6 @@ async function run() {
   document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Space', bubbles: true }));
   await wait(150);
 
-  // Stage charge scenario (sabre starts ON).
   // Reveal the dev header via the pi-toggle, then click the
   // CHARGE TEST button to stage the scenario (matches the user-facing
   // path; __charge_test is no longer exposed on window).
@@ -76,44 +71,41 @@ async function run() {
   document.getElementById('charge-test-btn').click();
   await wait(80);
 
-  const attackSabre = document.querySelector('button[data-cmd="ATTACK SABRE"]');
-  const chargeSabre = document.querySelector('button[data-charge-pick="player:S"]');
-  const visible = el => el && el.style.display !== 'none';
+  const trigger = document.querySelector('#wrap-charge .menu-trigger');
+  trigger.click();
+  await wait(40);
 
-  console.log('--- with sabre ON ---');
-  console.log('ATTACK SABRE visible:', visible(attackSabre));
-  console.log('CHARGE YOU SABRE visible:', visible(chargeSabre));
-  const onOK = visible(attackSabre) && visible(chargeSabre);
+  const lengthBefore = messages.textContent.length;
+  function clickPick(key) {
+    const b = document.querySelector('button[data-charge-pick="' + key + '"]');
+    b.click();
+  }
 
-  // Turn the sabre off.
-  await sendCommand('SABRE');
-  await wait(120);
+  // Run several seeds-worth: take many samples by trying repeatedly.
+  // We just want to see that ATTACK actually attempts an attack at least
+  // once (no "PRINCESS LEIA HAS NO BLASTER" text expected for ATTACK).
+  clickPick('princess:A');
+  await wait(20);
+  clickPick('wookie:A');
+  await wait(20);
+  clickPick('player:H');
+  await wait(250);
 
-  console.log('--- with sabre OFF ---');
-  console.log('ATTACK SABRE visible:', visible(attackSabre));
-  console.log('CHARGE YOU SABRE visible:', visible(chargeSabre));
-  const offOK = !visible(attackSabre) && !visible(chargeSabre);
+  const after = messages.textContent.slice(lengthBefore);
+  console.log('=== OUTPUT ===');
+  console.log(after);
 
-  // Typed CHARGE SABRE while sabre off should still trigger the BASIC
-  // retry prompt — that path is the manual-input flow and shouldn't
-  // change. We verify the retry prompt text appears in messages.
-  const lenBefore = messages.textContent.length;
-  await sendCommand('CHARGE SABRE');
-  await wait(150);
-  const after = messages.textContent.slice(lenBefore);
-  const sawRetry = after.includes('WANT TO ATTACK WITH');
-  const sawSabreOffMsg = after.includes('TURN ON');
-  console.log('typed CHARGE SABRE saw sabre-off msg:', sawSabreOffMsg);
-  console.log('typed CHARGE SABRE saw retry prompt:', sawRetry);
-
-  // Get out of the retry loop by typing H.
-  await sendCommand('H');
-  await wait(100);
+  // After CHARGE HANDS with princess=A and wookie=A, BOTH followers should
+  // attack (HANDS / hp/2). The output should show three "ATTACKING" lines
+  // (player, princess, wookie) in BASIC's combat style.
+  const attackingCount = (after.match(/ATTACKING /g) || []).length;
+  console.log('ATTACKING lines:', attackingCount);
+  console.log('Expected at least 3 (player + princess + wookie):', attackingCount >= 3);
 
   if (errors.length) {
     console.log('=== ERRORS ===');
     for (const e of errors) console.log(e);
   }
-  process.exit((errors.length === 0 && onOK && offOK && sawRetry && sawSabreOffMsg) ? 0 : 1);
+  process.exit((errors.length === 0 && attackingCount >= 3) ? 0 : 1);
 }
 run().catch(e => { console.error(e); process.exit(2); });

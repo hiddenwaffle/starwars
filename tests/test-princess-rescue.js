@@ -1,16 +1,13 @@
-// Wookie-kill path test. Uses the WOOKIE TEST debug button to stage
-// an unfriendly wookie in room 2 (east of Hangar). On MOVE EAST, the
-// game rolls Math.random() < 0.25 for the kill check. We seed
-// Math.random deterministically and iterate seeds until one of them
-// lands the kill roll, then assert the death and game-over messages.
-//
-// With a 25% kill rate per encounter, we expect to find a passing
-// seed within a handful of tries.
+// Princess-rescue path test. Uses the RESCUE TEST debug button (revealed
+// via the pi-toggle) to stage princess as "lost" in room 2, then drives
+// the player through the rescue → escape → take-off sequence and
+// verifies the WITH THE PRINCESS! bonus appears in the endgame score.
 
 const fs = require('fs');
-const { JSDOM } = require('/home/claude/node_modules/jsdom');
+const path = require('path');
+const { JSDOM } = require('jsdom');
 
-const html = fs.readFileSync('/mnt/user-data/outputs/star-wars-1979.html', 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'dist', 'star-wars-1979.html'), 'utf8');
 
 class FakeAudioContext {
   constructor() { this.currentTime = 0; this.destination = {}; this.state = 'running'; }
@@ -26,16 +23,20 @@ class FakeAudioContext {
 }
 
 const wait = ms => new Promise(r => setTimeout(r, ms));
+const errors = [];
 
-async function runWithSeed(seed) {
-  const errors = [];
+async function run() {
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
     pretendToBeVisual: true,
     beforeParse(window) {
       window.AudioContext = FakeAudioContext;
       window.webkitAudioContext = FakeAudioContext;
-      let s = seed;
+      // Make randomness deterministic enough that the per-turn machinery
+      // (Vader move, soldier shots) doesn't accidentally kill us in the
+      // few turns this test runs. Vader was placed at room 22 by the
+      // setup; he'll wander but won't reach us in 3 turns.
+      let s = 314;
       window.Math.random = () => { s = (s * 1664525 + 1013904223) >>> 0; return (s & 0x7fffffff) / 0x80000000; };
       window.addEventListener('error', e => errors.push('window.error: ' + (e.error ? (e.error.stack || e.error.message) : e.message)));
       window.addEventListener('unhandledrejection', e => errors.push('unhandledrejection: ' + (e.reason && e.reason.stack ? e.reason.stack : String(e.reason))));
@@ -44,7 +45,7 @@ async function runWithSeed(seed) {
 
   const { window } = dom;
   const document = window.document;
-  await wait(150);
+  await wait(200);
   const messages = document.getElementById('messages');
   const findInput = () => messages ? messages.querySelector('input.term-input') : null;
   async function waitForInput(t = 1500) {
@@ -64,65 +65,58 @@ async function runWithSeed(seed) {
     await wait(60);
   }
 
+  // Boot.
   document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Space', bubbles: true }));
   await wait(40);
   await sendCmd('CADET');
   document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Space', bubbles: true }));
   await wait(40);
   document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Space', bubbles: true }));
-  await wait(100);
+  await wait(120);
 
+  // Stage rescue scenario via the dev button (revealed by pi-toggle).
   document.querySelector('.pi-toggle').click();
-  await wait(30);
-  document.getElementById('wookie-test-btn').click();
-  await wait(60);
-
-  const lenBefore = messages.textContent.length;
-  await sendCmd('MOVE EAST');
+  await wait(40);
+  document.getElementById('rescue-test-btn').click();
   await wait(80);
-  const after = messages.textContent.slice(lenBefore);
 
-  const greeted    = after.includes('LARGE, EXTREMELY');
-  const killed     = after.includes('RIPS YOUR ARMS OUT');
-  const joined     = after.includes('DECIDES TO JOIN');
-  const dead       = after.includes('YOU ARE DEAD');
+  // Move east to find princess.
+  const lenBeforeMove = messages.textContent.length;
+  await sendCmd('MOVE EAST');
+  const afterMove = messages.textContent.slice(lenBeforeMove);
+  const sawPrincessFound = afterMove.includes('YOU FOUND THE PRINCESS');
+  console.log('Found princess on east move:', sawPrincessFound);
 
-  dom.window.close();
-  return { seed, greeted, killed, joined, dead, errors: errors.length };
-}
-
-(async () => {
-  let killSeed = null;
-  let joinSeen = false;
-  let totalErrors = 0;
-  for (let seed = 1; seed <= 30; seed++) {
-    const r = await runWithSeed(seed);
-    if (r.errors) {
-      console.log('seed=' + seed, 'ERRORS', r.errors);
-      totalErrors += r.errors;
-      continue;
-    }
-    if (!r.greeted) {
-      console.log('seed=' + seed, 'wookie not greeted -- setup may be broken');
-      continue;
-    }
-    if (r.killed) {
-      console.log('seed=' + seed, 'KILL (greeted=' + r.greeted + ', dead=' + r.dead + ')');
-      killSeed = seed;
-      break;
-    }
-    if (r.joined) {
-      joinSeen = true;
-      console.log('seed=' + seed, 'wookie joined (no kill this seed)');
-    }
+  if (!sawPrincessFound) {
+    console.log('=== MESSAGE TAIL ===');
+    console.log(messages.textContent.slice(-600));
+    process.exit(1);
   }
 
-  console.log('=== RESULT ===');
-  console.log('errors=' + totalErrors);
-  console.log('kill-path observed at seed:', killSeed);
-  console.log('join-path observed at least once:', joinSeen);
+  // Walk back to the Hangar.
+  await sendCmd('MOVE WEST');
+  await wait(60);
 
-  // Pass condition: kill-path was observed cleanly (greeted -> RIPS ARMS OUT -> YOU ARE DEAD)
-  const ok = totalErrors === 0 && killSeed !== null;
+  // Take off.
+  const lenBeforeTakeoff = messages.textContent.length;
+  await sendCmd('TAKE-OFF');
+  await wait(150);
+  const afterTakeoff = messages.textContent.slice(lenBeforeTakeoff);
+  const sawEscape   = afterTakeoff.includes('TRACTOR BEAM IS INOPERABLE') ||
+                      afterTakeoff.includes('LET\'S SEE HOW YOU DID');
+  const sawPrincess = afterTakeoff.includes('WITH THE PRINCESS!');
+  const sawFinal    = afterTakeoff.includes('FINAL SCORE');
+
+  console.log('Reached endgame:', sawFinal);
+  console.log('WITH THE PRINCESS! bonus:', sawPrincess);
+  console.log('=== TAKEOFF OUTPUT (full) ===');
+  console.log(afterTakeoff);
+
+  if (errors.length) {
+    console.log('=== ERRORS ===');
+    for (const e of errors) console.log(e);
+  }
+  const ok = errors.length === 0 && sawPrincessFound && sawFinal && sawPrincess;
   process.exit(ok ? 0 : 1);
-})();
+}
+run().catch(e => { console.error('Test harness error:', e); process.exit(2); });

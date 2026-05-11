@@ -1,6 +1,7 @@
 // Headless simulation: load the HTML, find the button, click it, see if confirm is called
 const fs = require('fs');
-const html = fs.readFileSync('/mnt/user-data/outputs/star-wars-1979.html', 'utf8');
+const path = require('path');
+const html = fs.readFileSync(path.join(__dirname, '..', 'dist', 'star-wars-1979.html'), 'utf8');
 
 // Extract the script content
 const scriptMatch = html.match(/<script>([\s\S]*?)<\/script>/);
