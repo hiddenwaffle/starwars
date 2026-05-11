@@ -199,6 +199,7 @@ function input(prompt: string, autoFocus = false): Promise<string> {
     inp.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
         e.preventDefault();
+        e.stopPropagation();
         finish((inp.value || '').toUpperCase().trim());
       }
     });
