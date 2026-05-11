@@ -201,6 +201,8 @@ function input(prompt: string, autoFocus = false): Promise<string> {
         e.preventDefault();
         e.stopPropagation();
         finish((inp.value || '').toUpperCase().trim());
+      } else if (e.key === 'Escape') {
+        inp.blur();
       }
     });
   });
