@@ -84,7 +84,7 @@ function createGame(seed) {
     el.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
   }
 
-  async function waitForInput(timeoutMs = 5000) {
+  async function waitForInput(timeoutMs = 2000) {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
       if (errors.length > 0) return null;
@@ -96,7 +96,7 @@ function createGame(seed) {
   }
 
   // Poll for the .term-cursor element that anyKey() creates.
-  async function waitForCursor(timeoutMs = 5000) {
+  async function waitForCursor(timeoutMs = 2000) {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
       if (errors.length > 0) return false;
@@ -107,7 +107,7 @@ function createGame(seed) {
   }
 
   async function sendCommand(cmd) {
-    const inp = await waitForInput(5000);
+    const inp = await waitForInput(2000);
     if (!inp) {
       throw new Error(
         'No input prompt for "' + cmd + '". Tail: ' + getMessages().slice(-200));
