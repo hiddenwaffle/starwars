@@ -1975,6 +1975,25 @@ function wireUi(): void {
     // Priority 1: button inside an open menu
     const openMenu = palette.querySelector('.menu.open');
     if (openMenu) {
+      // Charge menu: keys apply to the first un-selected visible column
+      // (left-to-right), matching the multi-step click flow.
+      if (openMenu.classList.contains('charge-menu')) {
+        for (const col of openMenu.querySelectorAll('.charge-col')) {
+          const colEl = col as HTMLElement;
+          if (colEl.style.display === 'none') continue;
+          if (colEl.querySelector('button.is-picked')) continue;
+          const btn = colEl.querySelector(
+            'button[data-key="' + key + '"]'
+          ) as HTMLElement | null;
+          if (btn && btn.style.display !== 'none') {
+            e.preventDefault();
+            btn.click();
+          }
+          return; // Only act on the first un-selected column
+        }
+        return;
+      }
+      // Other menus (ATTACK, GET, DROP, ORDER, GIVE): direct key match
       const btn = openMenu.querySelector(
         'button[data-key="' + key + '"]'
       ) as HTMLElement | null;
