@@ -84,7 +84,7 @@ function createGame(seed) {
     el.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
   }
 
-  async function waitForInput(timeoutMs = 2000) {
+  async function waitForInput(timeoutMs = 5000) {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
       if (errors.length > 0) return null;
@@ -95,8 +95,19 @@ function createGame(seed) {
     return null;
   }
 
+  // Poll for the .term-cursor element that anyKey() creates.
+  async function waitForCursor(timeoutMs = 5000) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      if (errors.length > 0) return false;
+      if (messages && messages.querySelector('.term-cursor')) return true;
+      await wait(20);
+    }
+    return false;
+  }
+
   async function sendCommand(cmd) {
-    const inp = await waitForInput(2000);
+    const inp = await waitForInput(5000);
     if (!inp) {
       throw new Error(
         'No input prompt for "' + cmd + '". Tail: ' + getMessages().slice(-200));
@@ -108,25 +119,33 @@ function createGame(seed) {
   }
 
   async function pressAnyKey() {
-    await wait(50);
+    await waitForCursor(5000);
     pressKey('Space');
     await wait(40);
   }
 
   async function boot(name) {
-    await wait(150);
-    await pressAnyKey();
+    // Wait for the game script to execute and reach titleScreen().
+    // The title screen doesn't create a .term-cursor, so we poll for
+    // its visible text instead.
+    const start = Date.now();
+    while (Date.now() - start < 5000) {
+      if (getMessages().includes('STAR WARS')) break;
+      await wait(20);
+    }
+    pressKey('Space');
+    await wait(40);
     await sendCommand(name || 'TESTER');
     await pressAnyKey();
     await pressAnyKey();
-    await wait(150);
+    await wait(100);
   }
 
   return {
     dom, window, document, errors,
     messages, status, palette,
     wait, findInput, getMessages, getStatus,
-    pressKey, clickEl, waitForInput, sendCommand,
+    pressKey, clickEl, waitForInput, waitForCursor, sendCommand,
     pressAnyKey, boot, seededRand,
   };
 }
