@@ -17,82 +17,17 @@
 // assert. The two assertions above are the guard against the bug class
 // "the rescue/kill code path silently stopped firing."
 
-const fs = require('fs');
-const path = require('path');
-const { JSDOM } = require('jsdom');
-
-const html = fs.readFileSync(path.join(__dirname, '..', 'dist', 'star-wars-1979.html'), 'utf8');
-
-class FakeAudioContext {
-  constructor() { this.currentTime = 0; this.destination = {}; this.state = 'running'; }
-  createOscillator() {
-    const p = { value:0, setValueAtTime:()=>{}, linearRampToValueAtTime:()=>{}, exponentialRampToValueAtTime:()=>{}, cancelScheduledValues:()=>{} };
-    return { type:'', frequency:p, connect:(n)=>n||({connect:()=>{}}), start:()=>{}, stop:()=>{} };
-  }
-  createGain() {
-    const p = { value:0, setValueAtTime:()=>{}, linearRampToValueAtTime:()=>{}, exponentialRampToValueAtTime:()=>{}, cancelScheduledValues:()=>{} };
-    return { gain:p, connect:(n)=>n||({connect:()=>{}}) };
-  }
-  resume() { return Promise.resolve(); }
-}
-
-const wait = ms => new Promise(r => setTimeout(r, ms));
+const { createGame } = require('./harness');
 
 async function runWithSeed(seed) {
-  let s = seed;
-  const seededRand = () => { s = (s * 1664525 + 1013904223) >>> 0; return (s & 0x7fffffff) / 0x80000000; };
+  const g = createGame(seed);
+
+  // Separate RNG for harness command selection (different constants
+  // so it doesn't consume from the game's seeded Math.random stream).
   let harnessRandState = seed ^ 0xdeadbeef;
   const harnessRand = () => { harnessRandState = (harnessRandState * 1103515245 + 12345) >>> 0; return (harnessRandState & 0x7fffffff) / 0x80000000; };
 
-  const errors = [];
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    pretendToBeVisual: true,
-    beforeParse(window) {
-      window.AudioContext = FakeAudioContext;
-      window.webkitAudioContext = FakeAudioContext;
-      window.Math.random = seededRand;
-      window.addEventListener('error', e => errors.push('window.error: ' + (e.error ? (e.error.stack || e.error.message) : e.message)));
-      window.addEventListener('unhandledrejection', e => errors.push('unhandledrejection: ' + (e.reason && e.reason.stack ? e.reason.stack : String(e.reason))));
-    }
-  });
-  const { window } = dom;
-  const document = window.document;
-  await wait(150);
-
-  const messages = document.getElementById('messages');
-  const status = document.getElementById('status');
-  const findInput = () => messages ? messages.querySelector('input.term-input') : null;
-
-  async function waitForInput(t = 1500) {
-    const start = Date.now();
-    while (Date.now() - start < t) {
-      if (errors.length) return null;
-      const inp = findInput();
-      if (inp) return inp;
-      await wait(15);
-    }
-    return null;
-  }
-  async function sendCommand(cmd) {
-    const inp = await waitForInput(1200);
-    if (!inp) return false;
-    inp.value = cmd;
-    inp.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    await wait(35);
-    return true;
-  }
-  async function pressAnyKey() {
-    await wait(20);
-    document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Space', bubbles: true }));
-    await wait(20);
-  }
-
-  await pressAnyKey();
-  await sendCommand('TESTER');
-  await pressAnyKey();
-  await pressAnyKey();
-  await wait(80);
+  await g.boot();
 
   const milestones = {
     princessFound: false,
@@ -102,7 +37,7 @@ async function runWithSeed(seed) {
   };
 
   function scanMessages() {
-    const all = messages.textContent;
+    const all = g.getMessages();
     if (all.includes('YOU FOUND THE PRINCESS')) milestones.princessFound = true;
     if (all.includes('LARGE, EXTREMELY')) milestones.wookieEncountered = true;
     if (all.includes('RIPS YOUR ARMS OUT')) milestones.wookieKilled = true;
@@ -111,22 +46,22 @@ async function runWithSeed(seed) {
 
   let turns = 0;
   while (turns++ < 100) {
-    if (errors.length) break;
-    const stat = status ? status.textContent : '';
+    if (g.errors.length) break;
+    const stat = g.getStatus();
     const inGame = stat && stat.includes('DOORS OPEN');
-    const mtail = messages.textContent.slice(-200);
+    const mtail = g.getMessages().slice(-200);
     if (mtail.includes('FINAL SCORE') || mtail.includes('PRESS RESTART')) break;
     if (!inGame) {
-      const inp = findInput();
+      const inp = g.findInput();
       if (!inp) {
-        await pressAnyKey();
-        await wait(40);
-        if (!findInput()) break;
+        await g.pressAnyKey();
+        await g.wait(40);
+        if (!g.findInput()) break;
       }
     }
 
     // Re-fetch status after possible state change.
-    const stat2 = status ? status.textContent : '';
+    const stat2 = g.getStatus();
     const enemyHere = /\bIMPERIAL SOLDIER|DARTH VADER/.test(stat2) ||
       (() => { const m = stat2.match(/(\d+) SOLDIERS?/); return m && parseInt(m[1], 10) > 0; })();
 
@@ -145,7 +80,7 @@ async function runWithSeed(seed) {
         cmd = 'M ' + d;
       }
     }
-    await sendCommand(cmd);
+    await g.sendCommand(cmd).catch(() => {});
     scanMessages();
     // If we already encountered the wookie kill, we can stop early
     // (game is over).
@@ -153,8 +88,8 @@ async function runWithSeed(seed) {
   }
 
   scanMessages();
-  dom.window.close();
-  return { seed, milestones, errors: errors.length };
+  g.dom.window.close();
+  return { seed, milestones, errors: g.errors.length };
 }
 
 (async () => {

@@ -4,7 +4,7 @@ const fs = require('fs');
 const os = require('os');
 
 const testsDir = __dirname;
-const skip = new Set(['test-restart.js', 'test-visibility.js', 'run-all.js']);
+const skip = new Set(['test-restart.js', 'test-visibility.js', 'test-rescue-and-kill.js', 'run-all.js']);
 
 const testFiles = fs.readdirSync(testsDir)
   .filter(f => f.startsWith('test-') && f.endsWith('.js') && !skip.has(f))

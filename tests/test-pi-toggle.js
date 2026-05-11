@@ -4,40 +4,12 @@
 // 3. Clicking it again puts is-hidden back — hidden once more.
 // 4. The pi glyph is itself clickable (no pointer-events: none).
 
-const fs = require('fs');
-const path = require('path');
-const { JSDOM } = require('jsdom');
+const { createGame } = require('./harness');
 
-const html = fs.readFileSync(path.join(__dirname, '..', 'dist', 'star-wars-1979.html'), 'utf8');
-
-class FakeAudioContext {
-  constructor() { this.currentTime = 0; this.destination = {}; this.state = 'running'; }
-  createOscillator() {
-    const param = { value: 0, setValueAtTime: () => {}, linearRampToValueAtTime: () => {}, exponentialRampToValueAtTime: () => {}, cancelScheduledValues: () => {} };
-    return { type: '', frequency: param, connect: (n) => n || ({ connect: () => {} }), start: () => {}, stop: () => {} };
-  }
-  createGain() {
-    const param = { value: 0, setValueAtTime: () => {}, linearRampToValueAtTime: () => {}, exponentialRampToValueAtTime: () => {}, cancelScheduledValues: () => {} };
-    return { gain: param, connect: (n) => n || ({ connect: () => {} }) };
-  }
-  resume() { return Promise.resolve(); }
-}
-
-const errors = [];
 async function run() {
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    pretendToBeVisual: true,
-    beforeParse(window) {
-      window.AudioContext = FakeAudioContext;
-      window.webkitAudioContext = FakeAudioContext;
-      window.addEventListener('error', e => errors.push('window.error: ' + (e.error ? (e.error.stack || e.error.message) : e.message)));
-      window.addEventListener('unhandledrejection', e => errors.push('unhandledrejection: ' + (e.reason && e.reason.stack ? e.reason.stack : String(e.reason))));
-    }
-  });
-  const { window } = dom;
-  const document = window.document;
-  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const g = createGame();
+  const { window, document, errors, wait } = g;
+
   await wait(200);
 
   const pi = document.querySelector('.pi-toggle');

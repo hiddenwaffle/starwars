@@ -1,0 +1,134 @@
+// Shared test harness for Star Wars 1979 headless tests.
+// Usage:
+//   const { createGame } = require('./harness');
+//   const g = createGame(42);   // seed for deterministic RNG
+//   await g.boot();             // dismiss title, enter name, dismiss briefing
+//   await g.sendCommand('LOOK');
+//   console.log(g.getMessages());
+
+const fs = require('fs');
+const path = require('path');
+const { JSDOM } = require('jsdom');
+
+const html = fs.readFileSync(
+  path.join(__dirname, '..', 'dist', 'star-wars-1979.html'), 'utf8'
+);
+
+class FakeAudioContext {
+  constructor() { this.currentTime = 0; this.destination = {}; this.state = 'running'; }
+  createOscillator() {
+    const p = {
+      value: 0, setValueAtTime() {}, linearRampToValueAtTime() {},
+      exponentialRampToValueAtTime() {}, cancelScheduledValues() {}
+    };
+    return {
+      type: '', frequency: p,
+      connect: n => n || ({ connect() {} }), start() {}, stop() {}
+    };
+  }
+  createGain() {
+    const p = {
+      value: 0, setValueAtTime() {}, linearRampToValueAtTime() {},
+      exponentialRampToValueAtTime() {}, cancelScheduledValues() {}
+    };
+    return { gain: p, connect: n => n || ({ connect() {} }) };
+  }
+  resume() { return Promise.resolve(); }
+}
+
+function createGame(seed) {
+  const errors = [];
+  let s = (seed != null) ? seed : 42;
+  const seededRand = () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return (s & 0x7fffffff) / 0x80000000;
+  };
+
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously',
+    pretendToBeVisual: true,
+    beforeParse(window) {
+      window.AudioContext = FakeAudioContext;
+      window.webkitAudioContext = FakeAudioContext;
+      if (seed != null) window.Math.random = seededRand;
+      window.addEventListener('error', e => {
+        errors.push('window.error: ' + (e.error
+          ? (e.error.stack || e.error.message) : e.message));
+      });
+      window.addEventListener('unhandledrejection', e => {
+        errors.push('unhandledrejection: ' + (e.reason && e.reason.stack
+          ? e.reason.stack : String(e.reason)));
+      });
+    }
+  });
+
+  const { window } = dom;
+  const document = window.document;
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+
+  const messages = document.getElementById('messages');
+  const status = document.getElementById('status');
+  const palette = document.getElementById('palette');
+
+  const findInput = () =>
+    messages ? messages.querySelector('input.term-input') : null;
+  const getMessages = () => messages ? messages.textContent : '';
+  const getStatus = () => status ? status.textContent : '';
+
+  function pressKey(key) {
+    document.dispatchEvent(
+      new window.KeyboardEvent('keydown', { key, bubbles: true }));
+  }
+
+  function clickEl(el) {
+    el.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  }
+
+  async function waitForInput(timeoutMs = 2000) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      if (errors.length > 0) return null;
+      const inp = findInput();
+      if (inp) return inp;
+      await wait(20);
+    }
+    return null;
+  }
+
+  async function sendCommand(cmd) {
+    const inp = await waitForInput(2000);
+    if (!inp) {
+      throw new Error(
+        'No input prompt for "' + cmd + '". Tail: ' + getMessages().slice(-200));
+    }
+    inp.value = cmd;
+    inp.dispatchEvent(
+      new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await wait(50);
+  }
+
+  async function pressAnyKey() {
+    await wait(50);
+    pressKey('Space');
+    await wait(40);
+  }
+
+  async function boot(name) {
+    await wait(150);
+    await pressAnyKey();
+    await sendCommand(name || 'TESTER');
+    await pressAnyKey();
+    await pressAnyKey();
+    await wait(150);
+  }
+
+  return {
+    dom, window, document, errors,
+    messages, status, palette,
+    wait, findInput, getMessages, getStatus,
+    pressKey, clickEl, waitForInput, sendCommand,
+    pressAnyKey, boot, seededRand,
+  };
+}
+
+module.exports = { createGame };

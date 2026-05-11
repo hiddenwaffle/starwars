@@ -1,83 +1,11 @@
 // Test that the new palette buttons inject the right commands.
-const fs = require('fs');
-const path = require('path');
-const { JSDOM } = require('jsdom');
-
-const html = fs.readFileSync(path.join(__dirname, '..', 'dist', 'star-wars-1979.html'), 'utf8');
-const errors = [];
-
-class FakeAudioContext {
-  constructor() { this.currentTime = 0; this.destination = {}; this.state = 'running'; }
-  createOscillator() {
-    return {
-      type: '', frequency: { value: 0 },
-      connect: (n) => n || ({ connect: () => {} }),
-      start: () => {}, stop: () => {}
-    };
-  }
-  createGain() {
-    const param = {
-      value: 0,
-      setValueAtTime: () => {},
-      linearRampToValueAtTime: () => {},
-      exponentialRampToValueAtTime: () => {},
-      cancelScheduledValues: () => {}
-    };
-    return { gain: param, connect: (n) => n || ({ connect: () => {} }) };
-  }
-  resume() { return Promise.resolve(); }
-}
+const { createGame } = require('./harness');
 
 async function run() {
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    pretendToBeVisual: true,
-    beforeParse(window) {
-      window.AudioContext = FakeAudioContext;
-      window.webkitAudioContext = FakeAudioContext;
-      window.addEventListener('error', e => errors.push('error: ' + (e.error ? e.error.stack || e.error.message : e.message)));
-      window.addEventListener('unhandledrejection', e => errors.push('rejection: ' + (e.reason && e.reason.stack ? e.reason.stack : String(e.reason))));
-    }
-  });
+  const g = createGame();
+  const { document, palette, messages, wait, waitForInput, clickEl } = g;
 
-  const { window } = dom;
-  const document = window.document;
-  const wait = ms => new Promise(r => setTimeout(r, ms));
-
-  await wait(150);
-
-  const messages = document.getElementById('messages');
-  const status = document.getElementById('status');
-  const palette = document.getElementById('palette');
-  const findInput = () => messages.querySelector('input.term-input');
-
-  function pressKey(key) {
-    document.dispatchEvent(new window.KeyboardEvent('keydown', { key, bubbles: true }));
-  }
-  function clickEl(el) {
-    el.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  }
-  async function pressAnyKey() { await wait(40); pressKey('Space'); await wait(40); }
-  async function waitForInput(t = 1000) {
-    const start = Date.now();
-    while (Date.now() - start < t) {
-      const inp = findInput();
-      if (inp) return inp;
-      await wait(15);
-    }
-    return null;
-  }
-
-  await pressAnyKey();
-  const inp1 = await waitForInput();
-  if (inp1) {
-    inp1.value = 'TESTER';
-    inp1.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    await wait(40);
-  }
-  await pressAnyKey();
-  await pressAnyKey();
-  await wait(150);
+  await g.boot();
 
   // Now in main loop. Inventory the palette buttons we expect.
   const allCmdButtons = Array.from(palette.querySelectorAll('button[data-cmd]'));
@@ -101,7 +29,7 @@ async function run() {
   const safeCmds = ['L', 'SABRE', 'F', 'TOSS', 'SWING', 'SAB', 'TA'];
   const tail = () => messages.textContent.slice(-300);
   for (const cmd of safeCmds) {
-    if (errors.length) break;
+    if (g.errors.length) break;
     const btn = allCmdButtons.find(b => b.dataset.cmd === cmd);
     if (!btn) { console.log('No button for cmd:', cmd); continue; }
     await waitForInput();
@@ -123,7 +51,7 @@ async function run() {
       const before = messages.textContent.length;
       clickEl(hBtn);
       await wait(80);
-      console.log('Clicked ATTACK ▾ HANDS ->', JSON.stringify(messages.textContent.slice(before, before + 200)));
+      console.log('Clicked ATTACK \u25be HANDS ->', JSON.stringify(messages.textContent.slice(before, before + 200)));
     } else {
       console.log('No A H button found');
     }
@@ -142,18 +70,17 @@ async function run() {
       const before = messages.textContent.length;
       clickEl(opwBtn);
       await wait(80);
-      console.log('Clicked ORDER ▾ P:WAIT ->', JSON.stringify(messages.textContent.slice(before, before + 200)));
+      console.log('Clicked ORDER \u25be P:WAIT ->', JSON.stringify(messages.textContent.slice(before, before + 200)));
     }
   }
 
   console.log('\n=== ERRORS ===');
-  if (errors.length === 0) console.log('(none)');
-  else for (const e of errors) console.log(e);
-  process.exit(errors.length > 0 ? 1 : 0);
+  if (g.errors.length === 0) console.log('(none)');
+  else for (const e of g.errors) console.log(e);
+  process.exit(g.errors.length > 0 ? 1 : 0);
 }
 
 run().catch(e => {
   console.error('Test harness error:', e);
-  for (const er of errors) console.log(er);
   process.exit(2);
 });

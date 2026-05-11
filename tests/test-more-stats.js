@@ -10,76 +10,22 @@
 //   4. The TOTAL line is present and matches the FINAL SCORE printed by
 //      the headline scoring narrative.
 
-const fs = require('fs');
-const path = require('path');
-const { JSDOM } = require('jsdom');
-
-const html = fs.readFileSync(path.join(__dirname, '..', 'dist', 'star-wars-1979.html'), 'utf8');
-
-class FakeAudioContext {
-  constructor() { this.currentTime = 0; this.destination = {}; this.state = 'running'; }
-  createOscillator() {
-    const p = { value:0, setValueAtTime:()=>{}, linearRampToValueAtTime:()=>{}, exponentialRampToValueAtTime:()=>{}, cancelScheduledValues:()=>{} };
-    return { type:'', frequency:p, connect:(n)=>n||({connect:()=>{}}), start:()=>{}, stop:()=>{} };
-  }
-  createGain() {
-    const p = { value:0, setValueAtTime:()=>{}, linearRampToValueAtTime:()=>{}, exponentialRampToValueAtTime:()=>{}, cancelScheduledValues:()=>{} };
-    return { gain:p, connect:(n)=>n||({connect:()=>{}}) };
-  }
-  resume() { return Promise.resolve(); }
-}
-
-const wait = ms => new Promise(r => setTimeout(r, ms));
-const errors = [];
+const { createGame } = require('./harness');
 
 async function run() {
-  const dom = new JSDOM(html, {
-    runScripts: 'dangerously',
-    pretendToBeVisual: true,
-    beforeParse(window) {
-      window.AudioContext = FakeAudioContext;
-      window.webkitAudioContext = FakeAudioContext;
-      let s = 314;
-      window.Math.random = () => { s = (s * 1664525 + 1013904223) >>> 0; return (s & 0x7fffffff) / 0x80000000; };
-      window.addEventListener('error', e => errors.push('window.error: ' + (e.error ? (e.error.stack || e.error.message) : e.message)));
-      window.addEventListener('unhandledrejection', e => errors.push('unhandledrejection: ' + (e.reason && e.reason.stack ? e.reason.stack : String(e.reason))));
-    }
-  });
-  const { window } = dom;
-  const document = window.document;
-  await wait(200);
-  const messages = document.getElementById('messages');
-  const findInput = () => messages ? messages.querySelector('input.term-input') : null;
-  async function waitForInput(t = 1500) {
-    const start = Date.now();
-    while (Date.now() - start < t) { const i = findInput(); if (i) return i; await wait(20); }
-    return null;
-  }
-  async function sendCmd(cmd) {
-    const inp = await waitForInput();
-    if (!inp) throw new Error('No input for: ' + cmd);
-    inp.value = cmd;
-    inp.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    await wait(60);
-  }
+  const g = createGame(314);
+  const { document, errors, messages, wait, sendCommand } = g;
 
-  // Boot.
-  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Space', bubbles: true }));
-  await wait(40);
-  await sendCmd('CADET');
-  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Space', bubbles: true }));
-  await wait(40);
-  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Space', bubbles: true }));
-  await wait(120);
+  await g.boot('CADET');
 
   // Stage rescue, rescue, escape.
   document.querySelector('.pi-toggle').click();
   await wait(40);
   document.getElementById('rescue-test-btn').click();
   await wait(80);
-  await sendCmd('MOVE EAST');
-  await sendCmd('MOVE WEST');
-  await sendCmd('TAKE-OFF');
+  await sendCommand('MOVE EAST');
+  await sendCommand('MOVE WEST');
+  await sendCommand('TAKE-OFF');
   await wait(200);
 
   // Game should be over now. Check body class and button visibility.
