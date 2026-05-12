@@ -26,6 +26,11 @@ and mechanics that look like bugs in the BASIC are preserved on purpose
 (e.g., sabre damage A1 = player.hp; the soldier-defense pulls from S(S9,1)
 even after a kill).
 
+**Original game provenance:**
+- [Facebook post with screenshots](https://www.facebook.com/groups/5251478676/posts/10156900565763677/) — how the game was identified.
+- [Archive.org disk image](https://archive.org/details/a2_cple_Apple_oids_Outpost_Star_Blaster_Star_Wars_Taxman) — the disk containing the BASIC source.
+- [Apple II emulator](https://www.scullinsteel.com/apple2/#dos33master) — Scullinsteel's browser-based Apple II used to play the original for reference.
+
 ---
 
 ## 2. Files in the project
