@@ -837,7 +837,9 @@ function updatePalette(): void {
   setColBtn('princess:S', princessHere && princess.blaster > 0);
   setColBtn('princess:A', princessHere);
   setColBtn('princess:N', princessHere);
-  // Player column buttons
+  // Player column: label = player's name
+  const playerLabel = document.querySelector('.charge-col[data-charge-col="player"] .charge-col-label') as HTMLElement | null;
+  if (playerLabel) playerLabel.textContent = player.name || 'YOU';
   setColBtn('player:S', player.sabre   > 0 && flags.sabreOn);
   setColBtn('player:B', player.blaster > 0);
   setColBtn('player:H', true);
@@ -1945,6 +1947,21 @@ function wireUi(): void {
     chargeDraft = { princess: null, player: null, wookie: null };
     document.querySelectorAll('#wrap-charge .charge-col button.is-picked')
       .forEach(b => b.classList.remove('is-picked'));
+    document.querySelectorAll('#wrap-charge .charge-col')
+      .forEach(c => c.classList.remove('dim'));
+  }
+  function updateChargeFocus(): void {
+    let foundActive = false;
+    for (const col of document.querySelectorAll('#wrap-charge .charge-col')) {
+      const colEl = col as HTMLElement;
+      if (colEl.style.display === 'none') continue;
+      if (!foundActive && !colEl.querySelector('button.is-picked')) {
+        colEl.classList.remove('dim');
+        foundActive = true;
+      } else {
+        colEl.classList.add('dim');
+      }
+    }
   }
   function fireChargeIfComplete(): void {
     // Required columns: those visible right now.
@@ -1972,13 +1989,14 @@ function wireUi(): void {
       // Mark this button picked, unmark siblings in same column.
       const colEl = btn.closest('.charge-col')!;
       colEl.querySelectorAll('button').forEach(b => b.classList.toggle('is-picked', b === btn));
+      updateChargeFocus();
       fireChargeIfComplete();
     });
   });
   // Reset draft whenever the CHARGE trigger is clicked (open or close).
   const chargeTrigger = document.querySelector('#wrap-charge .menu-trigger');
   if (chargeTrigger) {
-    chargeTrigger.addEventListener('click', () => resetChargeDraft());
+    chargeTrigger.addEventListener('click', () => { resetChargeDraft(); updateChargeFocus(); });
   }
 
   function toggleMenu(menu: Element, evt: Event): void {

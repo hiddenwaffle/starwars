@@ -437,8 +437,9 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    min-width: 90px;
+    min-width: 0;
   }
+  .charge-col button { white-space: nowrap; }
   .charge-col-label {
     font-size: 10px;
     color: var(--phos-mid);
@@ -447,11 +448,19 @@
     padding: 2px 0 4px 0;
     border-bottom: 1px solid var(--frame-hi);
     margin-bottom: 2px;
+    max-width: 10ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    align-self: center;
   }
   .charge-col button.is-picked {
     color: var(--phos-bright);
     border-color: var(--phos);
     background: var(--bg-soft);
+  }
+  .charge-col.dim {
+    opacity: 0.35;
   }
   .palette .sep { color: transparent; font-size: 12px; letter-spacing: 0.1em; }
   .key-hint {
@@ -590,21 +599,21 @@
           <div class="charge-cols">
             <div class="charge-col" data-charge-col="princess">
               <div class="charge-col-label">PRINCESS</div>
-              <button data-charge-pick="princess:S" data-key="S"><span class="key-hint">S</span>HOOT</button>
-              <button data-charge-pick="princess:A" data-key="A"><span class="key-hint">A</span>TTACK</button>
-              <button data-charge-pick="princess:N" data-key="N"><span class="key-hint">N</span>OTHING</button>
+              <button data-charge-pick="princess:S" data-key="1"><span class="key-hint">1</span> SHOOT</button>
+              <button data-charge-pick="princess:A" data-key="2"><span class="key-hint">2</span> ATTACK</button>
+              <button data-charge-pick="princess:N" data-key="3"><span class="key-hint">3</span> NOTHING</button>
             </div>
             <div class="charge-col" data-charge-col="player">
               <div class="charge-col-label">YOU</div>
-              <button data-charge-pick="player:S" data-key="S"><span class="key-hint">S</span>ABRE</button>
-              <button data-charge-pick="player:B" data-key="B"><span class="key-hint">B</span>LASTER</button>
-              <button data-charge-pick="player:H" data-key="H"><span class="key-hint">H</span>ANDS</button>
+              <button data-charge-pick="player:S" data-key="1"><span class="key-hint">1</span> SABRE</button>
+              <button data-charge-pick="player:B" data-key="2"><span class="key-hint">2</span> BLASTER</button>
+              <button data-charge-pick="player:H" data-key="3"><span class="key-hint">3</span> HANDS</button>
             </div>
             <div class="charge-col" data-charge-col="wookie">
               <div class="charge-col-label">WOOKIE</div>
-              <button data-charge-pick="wookie:S" data-key="S"><span class="key-hint">S</span>HOOT</button>
-              <button data-charge-pick="wookie:A" data-key="A"><span class="key-hint">A</span>TTACK</button>
-              <button data-charge-pick="wookie:N" data-key="N"><span class="key-hint">N</span>OTHING</button>
+              <button data-charge-pick="wookie:S" data-key="1"><span class="key-hint">1</span> SHOOT</button>
+              <button data-charge-pick="wookie:A" data-key="2"><span class="key-hint">2</span> ATTACK</button>
+              <button data-charge-pick="wookie:N" data-key="3"><span class="key-hint">3</span> NOTHING</button>
             </div>
           </div>
         </div>
