@@ -110,6 +110,15 @@ messages.addEventListener('click', () => {
 
 let mode: string = 'normal';
 
+let lineDelay = 0;
+let lineWrap: HTMLElement | null = null;
+let pendingLines: HTMLElement[] = [];
+
+function sleep(ms: number): Promise<void> {
+  if (ms <= 0) return Promise.resolve();
+  return new Promise(r => setTimeout(r, ms));
+}
+
 function out(text: string, modeOverride?: string): void {
   if (text === '' || text === undefined || text === null) return;
   const m = modeOverride !== undefined ? modeOverride : mode;
@@ -117,17 +126,63 @@ function out(text: string, modeOverride?: string): void {
   if (m === 'inverse') span.className = 'inv';
   else if (m === 'flash') span.className = 'fls';
   span.textContent = String(text);
-  messages.appendChild(span);
-  scrollMessagesToBottom();
+  if (lineDelay > 0) {
+    if (!lineWrap) {
+      lineWrap = document.createElement('span');
+      lineWrap.style.display = 'none';
+      messages.appendChild(lineWrap);
+    }
+    lineWrap.appendChild(span);
+  } else {
+    messages.appendChild(span);
+    scrollMessagesToBottom();
+  }
 }
 function nl(): void {
-  messages.appendChild(document.createTextNode('\n'));
+  if (lineDelay > 0) {
+    if (!lineWrap) {
+      lineWrap = document.createElement('span');
+      lineWrap.style.display = 'none';
+      messages.appendChild(lineWrap);
+    }
+    lineWrap.appendChild(document.createTextNode('\n'));
+    pendingLines.push(lineWrap);
+    lineWrap = null;
+  } else {
+    messages.appendChild(document.createTextNode('\n'));
+    scrollMessagesToBottom();
+  }
+}
+
+async function drainLines(): Promise<void> {
+  while (pendingLines.length > 0) {
+    const w = pendingLines.shift()!;
+    w.style.display = '';
+    scrollMessagesToBottom();
+    await sleep(lineDelay);
+  }
+  if (lineWrap) {
+    lineWrap.style.display = '';
+    lineWrap = null;
+    scrollMessagesToBottom();
+  }
+}
+
+function flushLines(): void {
+  for (const w of pendingLines) w.style.display = '';
+  pendingLines = [];
+  if (lineWrap) { lineWrap.style.display = ''; lineWrap = null; }
   scrollMessagesToBottom();
 }
+
 function scrollMessagesToBottom(): void {
   messages.scrollTop = messages.scrollHeight;
 }
-function clearMessages(): void { messages.textContent = ''; }
+function clearMessages(): void {
+  pendingLines = [];
+  lineWrap = null;
+  messages.textContent = '';
+}
 function clearStatus(): void { status.textContent = ''; }
 const mapTooltip = document.getElementById('map-tooltip');
 const mapFrame   = document.querySelector('.map-frame');
@@ -172,9 +227,10 @@ let acceptingMoveInput = false;
 // flow.
 let chargePresets: Record<string, string> | null = null;
 
-function input(prompt: string, autoFocus = false): Promise<string> {
+async function input(prompt: string, autoFocus = false): Promise<string> {
+  out(prompt + '? ');
+  await drainLines();
   return new Promise(resolve => {
-    out(prompt + '? ');
     const wrap = document.createElement('span');
     const inp = document.createElement('input');
     inp.type = 'text';
@@ -943,6 +999,8 @@ function combatResolve(A1: number, D1: number, P1: number): void {
 // -------- Enter-room logic (BASIC 1750-1820) --------
 
 function enterRoom(): void {
+  // Reveal any buffered lines before restructuring the DOM.
+  flushLines();
   // Wrap all existing messages into a "dim-past" container so the
   // current room's content stands out at full brightness, and
   // everything before is one shade dimmer. Multi-room sessions chain
@@ -2082,6 +2140,7 @@ function wireUi(): void {
 // -------- Main --------
 
 async function gameLoop(): Promise<void> {
+  lineDelay = 50;
   palette.classList.remove('pre-game');
   // BASIC line 560: GOSUB 1750 before the T8 loop -> initial enterRoom
   enterRoom();
@@ -2148,6 +2207,7 @@ async function gameLoop(): Promise<void> {
   }
   nl();
   showScore();
+  flushLines();
 }
 
 async function main(): Promise<void> {
