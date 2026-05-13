@@ -2164,6 +2164,7 @@ function wireUi(): void {
   if (moreStatsBtn) {
     moreStatsBtn.addEventListener('click', () => {
       showScoreBreakdown();
+      flushLines();
       moreStatsBtn.disabled = true;
     });
   }
