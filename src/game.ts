@@ -453,17 +453,26 @@ function getRoomName(rNum: number): string {
 
 // -------- Status panel render --------
 
-function renderStatus(): void {
-  status.textContent = '';
+let statusSlow = false;
+
+async function renderStatus(): Promise<void> {
+  // Build all lines into offscreen wrappers first.
+  const lines: HTMLElement[] = [];
+  let curLine = document.createElement('span');
+
   function add(text: string, m?: string): void {
     if (text === '') return;
     const span = document.createElement('span');
     if (m === 'inverse') span.className = 'inv';
     else if (m === 'flash') span.className = 'fls';
     span.textContent = String(text);
-    status.appendChild(span);
+    curLine.appendChild(span);
   }
-  function lf(): void { status.appendChild(document.createTextNode('\n')); }
+  function lf(): void {
+    curLine.appendChild(document.createTextNode('\n'));
+    lines.push(curLine);
+    curLine = document.createElement('span');
+  }
 
   const name = getRoomName(player.room);
   const X = Math.max(1, Math.floor((40 - name.length) / 2));
@@ -522,6 +531,26 @@ function renderStatus(): void {
     add(flags.ropeUp ? 'ROPE IS UP' : 'ROPE IS NOT UP'); lf();
   }
   add('-'.repeat(40));
+  if (curLine.childNodes.length > 0) lines.push(curLine);
+
+  // Reveal: line-by-line on room entry, instant otherwise.
+  const slow = statusSlow && lineDelay > 0;
+  statusSlow = false;
+  status.textContent = '';
+  if (slow) {
+    // Append all lines hidden so the element takes its full height,
+    // then reveal one at a time.
+    for (const ln of lines) {
+      ln.style.visibility = 'hidden';
+      status.appendChild(ln);
+    }
+    for (let i = 0; i < lines.length; i++) {
+      lines[i].style.visibility = '';
+      if (i < lines.length - 1) await sleep(lineDelay);
+    }
+  } else {
+    for (const ln of lines) status.appendChild(ln);
+  }
 }
 
 // -------- Map --------
@@ -1017,6 +1046,8 @@ function combatResolve(A1: number, D1: number, P1: number): void {
 function enterRoom(): void {
   // Reveal any buffered lines before restructuring the DOM.
   flushLines();
+  // Next renderStatus() call will reveal lines with delay.
+  statusSlow = true;
   // Wrap all existing messages into a "dim-past" container so the
   // current room's content stands out at full brightness, and
   // everything before is one shade dimmer. Multi-room sessions chain
@@ -2187,7 +2218,7 @@ async function gameLoop(): Promise<void> {
     // or the game ends. GET/DROP/help are free actions (return false).
     let consumed = false;
     while (!consumed && !gameOver) {
-      renderStatus();
+      await renderStatus();
       renderMap();
       updateDpad();
       updatePalette();
