@@ -2285,7 +2285,7 @@ async function gameLoop(): Promise<void> {
   }
   nl();
   showScore();
-  flushLines();
+  await drainLines();
 }
 
 async function main(): Promise<void> {
