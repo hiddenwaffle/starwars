@@ -756,6 +756,18 @@ function updatePalette(): void {
   const vaderHere    = (vader.room   === player.room && vader.room   !== 0);
   const hasEnemies   = (s9 > 0) || vaderHere;
 
+  // Renumber visible buttons in a menu so keys are always 1, 2, 3…
+  const renumberMenu = (wrapId: string): void => {
+    let n = 1;
+    for (const btn of document.querySelectorAll('#' + wrapId + ' .menu button[data-key]')) {
+      const b = btn as HTMLElement;
+      if (b.style.display === 'none') continue;
+      const key = String(n++);
+      b.dataset.key = key;
+      const hint = b.querySelector('.key-hint');
+      if (hint) hint.textContent = key;
+    }
+  };
   const setBtn = (cmd: string, vis: boolean): void => {
     const b = palette.querySelector('button[data-cmd="' + cmd.replace(/"/g, '\\"') + '"]') as HTMLButtonElement | null;
     if (b) b.style.display = vis ? '' : 'none';
@@ -856,6 +868,7 @@ function updatePalette(): void {
   setBtn('ORDER WOOKIE SHOOT',    wookieHere   && wookie.blaster   > 0);
   setBtn('ORDER WOOKIE ATTACK',   wookieHere);
   setBtn('ORDER WOOKIE WAIT',     wookieHere);
+  renumberMenu('wrap-order');
 
   // GIVE dropdown
   const canGive = followerHere && (player.shield > 0 || player.blaster > 0);
@@ -864,6 +877,7 @@ function updatePalette(): void {
   setBtn('GIVE PRINCESS BLASTER', princessHere && player.blaster > 0 && princess.blaster === 0);
   setBtn('GIVE WOOKIE SHIELD',    wookieHere   && player.shield  > 0 && wookie.shield    === 0);
   setBtn('GIVE WOOKIE BLASTER',   wookieHere   && player.blaster > 0 && wookie.blaster   === 0);
+  renumberMenu('wrap-give');
 
   // Auto-Attack: one-click "best usable weapon" attack, sitting next to
   // ATTACK in the palette. Shown only when there's an enemy here. The
