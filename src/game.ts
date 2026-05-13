@@ -2094,6 +2094,11 @@ function wireUi(): void {
       document.querySelectorAll('.menu.open').forEach(m => m.classList.remove('open'));
       return;
     }
+    if (e.key === 'Enter') {
+      const armed = palette.querySelector('.palette-restart-btn.armed') as HTMLElement | null;
+      if (armed) { e.preventDefault(); armed.click(); }
+      return;
+    }
     const key = e.key.length === 1 ? e.key.toUpperCase() : '';
     if (!key) return;
 
@@ -2177,22 +2182,32 @@ function wireUi(): void {
   function wireRestart(btn: HTMLElement): void {
     let armed = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    const hasKeyHint = !!btn.querySelector('.key-hint');
+    const labelArmed = hasKeyHint
+      ? 'CONFIRM <span class="key-hint">R</span>ESTART?'
+      : 'CONFIRM RESTART?';
+    const labelIdle = hasKeyHint
+      ? '<span class="key-hint">R</span>ESTART'
+      : 'RESTART';
+    function arm(): void {
+      armed = true;
+      btn.innerHTML = labelArmed;
+      btn.classList.add('armed');
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        armed = false;
+        btn.innerHTML = labelIdle;
+        btn.classList.remove('armed');
+        timer = null;
+      }, 3500);
+    }
+    function confirm(): void {
+      location.reload();
+    }
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (!armed) {
-        armed = true;
-        btn.textContent = 'CONFIRM RESTART?';
-        btn.classList.add('armed');
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(() => {
-          armed = false;
-          btn.textContent = 'RESTART';
-          btn.classList.remove('armed');
-          timer = null;
-        }, 3500);
-      } else {
-        location.reload();
-      }
+      if (!armed) arm();
+      else confirm();
     });
   }
   wireRestart(restartBtn);
