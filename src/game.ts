@@ -2162,10 +2162,10 @@ function wireUi(): void {
   // disable so the player doesn't print it twice.
   const moreStatsBtn = document.getElementById('more-stats-btn') as HTMLButtonElement | null;
   if (moreStatsBtn) {
-    moreStatsBtn.addEventListener('click', () => {
-      showScoreBreakdown();
-      flushLines();
+    moreStatsBtn.addEventListener('click', async () => {
       moreStatsBtn.disabled = true;
+      showScoreBreakdown();
+      await drainLines();
     });
   }
 
