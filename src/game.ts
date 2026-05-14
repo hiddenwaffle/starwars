@@ -792,7 +792,6 @@ function updatePalette(): void {
     let n = 1;
     for (const btn of document.querySelectorAll('#' + wrapId + ' .menu button')) {
       const b = btn as HTMLElement;
-      if (!b.dataset.key && !b.dataset.chargePick) continue;
       if (b.style.display === 'none') {
         b.dataset.key = '';
         continue;
@@ -899,7 +898,6 @@ function updatePalette(): void {
     let n = 1;
     for (const btn of col.querySelectorAll('button')) {
       const b = btn as HTMLElement;
-      if (!b.dataset.key && !b.dataset.chargePick) continue;
       if (b.style.display === 'none') { b.dataset.key = ''; continue; }
       const key = String(n++);
       b.dataset.key = key;
