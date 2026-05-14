@@ -786,11 +786,17 @@ function updatePalette(): void {
   const hasEnemies   = (s9 > 0) || vaderHere;
 
   // Renumber visible buttons in a menu so keys are always 1, 2, 3…
+  // Hidden buttons get data-key cleared so they don't shadow the
+  // renumbered keys in querySelector lookups.
   const renumberMenu = (wrapId: string): void => {
     let n = 1;
-    for (const btn of document.querySelectorAll('#' + wrapId + ' .menu button[data-key]')) {
+    for (const btn of document.querySelectorAll('#' + wrapId + ' .menu button')) {
       const b = btn as HTMLElement;
-      if (b.style.display === 'none') continue;
+      if (!b.dataset.key && !b.dataset.chargePick) continue;
+      if (b.style.display === 'none') {
+        b.dataset.key = '';
+        continue;
+      }
       const key = String(n++);
       b.dataset.key = key;
       const hint = b.querySelector('.key-hint');
@@ -888,6 +894,19 @@ function updatePalette(): void {
   setColBtn('wookie:S', wookieHere && wookie.blaster > 0);
   setColBtn('wookie:A', wookieHere);
   setColBtn('wookie:N', wookieHere);
+  // Renumber each charge column so keys are sequential 1, 2, 3…
+  for (const col of document.querySelectorAll('#wrap-charge .charge-col')) {
+    let n = 1;
+    for (const btn of col.querySelectorAll('button')) {
+      const b = btn as HTMLElement;
+      if (!b.dataset.key && !b.dataset.chargePick) continue;
+      if (b.style.display === 'none') { b.dataset.key = ''; continue; }
+      const key = String(n++);
+      b.dataset.key = key;
+      const hint = b.querySelector('.key-hint');
+      if (hint) hint.textContent = key;
+    }
+  }
 
   // ORDER dropdown
   setWrap('wrap-order', followerHere);
