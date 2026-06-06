@@ -986,7 +986,13 @@ function playTone(ab: number, ae: number, dn: number, cf: number): void {
   for (let c = 0; c < cf; c++) {
     const step = (ab <= ae) ? 1 : -1;
     for (let ta = ab; (step > 0 ? ta <= ae : ta >= ae); ta += step) {
-      const freq = Math.max(120, Math.min(4000, 1000000 / (10 * Math.max(1, ta) * Math.max(1, dn))));
+      // Model the Apple II's BASIC loop: CALL 770 toggles the speaker once
+      // then delays via a nested loop (~TA*(5*DN+7) cycles). The Applesoft
+      // interpreter adds ~2500 cycles of overhead per iteration (NEXT, two
+      // POKEs, CALL). Frequency = CPU_freq / (2 * total_half_period).
+      const machCycles = Math.max(1, ta) * (5 * Math.max(1, dn) + 7);
+      const halfPeriod = machCycles + 2500;          // + Applesoft overhead
+      const freq = Math.max(20, Math.min(4000, 1023000 / (2 * halfPeriod)));
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'square';
