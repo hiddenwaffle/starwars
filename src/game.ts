@@ -113,6 +113,7 @@ let mode: string = 'normal';
 let lineDelay = 0;
 let lineWrap: HTMLElement | null = null;
 let pendingLines: HTMLElement[] = [];
+const lineSounds = new WeakMap<HTMLElement, (() => void)[]>();
 
 function sleep(ms: number): Promise<void> {
   if (ms <= 0) return Promise.resolve();
@@ -159,6 +160,8 @@ async function drainLines(): Promise<void> {
     const w = pendingLines.shift()!;
     w.style.display = '';
     scrollMessagesToBottom();
+    const sounds = lineSounds.get(w);
+    if (sounds) for (const s of sounds) s();
     await sleep(lineDelay);
   }
   if (lineWrap) {
@@ -169,7 +172,11 @@ async function drainLines(): Promise<void> {
 }
 
 function flushLines(): void {
-  for (const w of pendingLines) w.style.display = '';
+  for (const w of pendingLines) {
+    w.style.display = '';
+    const sounds = lineSounds.get(w);
+    if (sounds) for (const s of sounds) s();
+  }
   pendingLines = [];
   if (lineWrap) { lineWrap.style.display = ''; lineWrap = null; }
   scrollMessagesToBottom();
@@ -963,6 +970,7 @@ function pickBestWeapon(): string {
 // to a pitch sweep and DN to step duration. Calls must be user-gesture
 // gated, but our title screen requires a click to dismiss so we're fine.
 let audioCtx: AudioContext | null = null;
+let nextSoundTime = 0;
 function ensureAudio(): AudioContext | null {
   if (!audioCtx) {
     try { audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)(); }
@@ -979,20 +987,22 @@ function ensureAudio(): AudioContext | null {
 function playTone(ab: number, ae: number, dn: number, cf: number): void {
   const ctx = ensureAudio();
   if (!ctx) return;
-  const stepMs = Math.max(8, dn * 2);
-  const stepDur = stepMs / 1000;
   const peakGain = 0.04;
-  let t = ctx.currentTime + 0.001;
+  let t = Math.max(ctx.currentTime + 0.001, nextSoundTime);
   for (let c = 0; c < cf; c++) {
     const step = (ab <= ae) ? 1 : -1;
     for (let ta = ab; (step > 0 ? ta <= ae : ta >= ae); ta += step) {
-      // Model the Apple II's BASIC loop: CALL 770 toggles the speaker once
-      // then delays via a nested loop (~TA*(5*DN+7) cycles). The Applesoft
-      // interpreter adds ~2500 cycles of overhead per iteration (NEXT, two
-      // POKEs, CALL). Frequency = CPU_freq / (2 * total_half_period).
-      const machCycles = Math.max(1, ta) * (5 * Math.max(1, dn) + 7);
-      const halfPeriod = machCycles + 2500;          // + Applesoft overhead
-      const freq = Math.max(20, Math.min(4000, 1023000 / (2 * halfPeriod)));
+      // 6502 routine at address 770 (loaded from DATA at BASIC line 540):
+      //   LDA $C030   ; toggle speaker
+      //   DEY / BNE / DEX / BNE  inner loop (10 cyc/iter)
+      //   when X=0: LDX $00 (reload TA), JMP back to toggle
+      //   when Y=0: DEC DN, BEQ → RTS if done
+      // Half-period = TA*10+9 machine cycles. DN controls duration:
+      // ~256*DN/TA speaker toggles per CALL 770 invocation.
+      const halfCyc = Math.max(1, ta) * 10 + 9;
+      const freq = Math.max(20, Math.min(15000, 1023000 / (2 * halfCyc)));
+      const toggles = Math.max(2, 256 * Math.max(1, dn) / Math.max(1, ta));
+      const stepDur = toggles * halfCyc / 1023000;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'square';
@@ -1005,19 +1015,36 @@ function playTone(ab: number, ae: number, dn: number, cf: number): void {
       osc.connect(gain).connect(ctx.destination);
       osc.start(t);
       osc.stop(t + stepDur + 0.005);
-      t += stepDur;
+      t += stepDur + 0.01;
     }
   }
+  nextSoundTime = t;
+}
+function queueSound(play: () => void): void {
+  if (lineDelay === 0) { play(); return; }
+  let target = pendingLines.length > 0 ? pendingLines[pendingLines.length - 1] : lineWrap;
+  if (!target) {
+    target = document.createElement('span');
+    target.style.display = 'none';
+    messages.appendChild(target);
+    pendingLines.push(target);
+  }
+  let arr = lineSounds.get(target);
+  if (!arr) { arr = []; lineSounds.set(target, arr); }
+  arr.push(play);
+}
+function snd(ab: number, ae: number, dn: number, cf: number): void {
+  queueSound(() => playTone(ab, ae, dn, cf));
 }
 const SND = {
-  takeoff:    () => playTone(1,   10,  5,  4),  // BASIC 2740
-  blaster:    () => playTone(5,   20,  3,  1),  // BASIC 2750
-  sabotage:   () => playTone(25,  30,  5,  1),  // BASIC 2760
-  explosion:  () => playTone(20,  20, 50,  6),  // BASIC 2770
-  kill:       () => playTone(75,  75, 30,  1),  // BASIC 2780
-  weaponBust: () => playTone(11,  15,  2,  4),  // BASIC 2790
-  sabre:      () => playTone(100, 115, 3,  1),  // BASIC 2800
-  click:      () => playTone(50,  50,  1,  1),  // BASIC 2820 short click
+  takeoff:    () => snd(1,   10,  5,  4),  // BASIC 2740
+  blaster:    () => snd(5,   20,  3,  1),  // BASIC 2750
+  sabotage:   () => snd(25,  30,  5,  1),  // BASIC 2760
+  explosion:  () => snd(20,  20, 50,  6),  // BASIC 2770
+  kill:       () => snd(75,  75, 30,  1),  // BASIC 2780
+  weaponBust: () => snd(11,  15,  2,  4),  // BASIC 2790
+  sabre:      () => snd(100, 115, 3,  1),  // BASIC 2800
+  click:      () => snd(50,  50,  1,  1),  // BASIC 2820 short click
 };
 
 // -------- Combat resolution (BASIC line 840) --------
@@ -1141,16 +1168,15 @@ function vaderMove(): void {
 function vaderAttack(): void {
   if (vader.room !== player.room) return;
   if (vader.room === 0) return;
-  let A1, msg;
+  let A1;
   if (vader.sabre > 0) {
-    msg = 'DARTH VADER SWINGS AT YOU WITH HIS LIGHT SABRE!';
+    out('DARTH VADER SWINGS AT YOU WITH HIS LIGHT SABRE!'); nl();
     SND.sabre();
     A1 = vader.hp;        // BASIC: A1 = P(4,2) (sabre power = hp stat)
   } else {
-    msg = 'DARTH VADER SWINGS AT YOU WITH HIS FIST!';
+    out('DARTH VADER SWINGS AT YOU WITH HIS FIST!'); nl();
     A1 = vader.hp / 2;
   }
-  out(msg); nl();
   combatResolve(A1, player.hp, 1);
   if (player.room === 0) die();
 }

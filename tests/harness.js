@@ -38,7 +38,10 @@ class FakeAudioContext {
 
 function createGame(seed) {
   const errors = [];
-  let s = (seed != null) ? seed : 42;
+  const envSeed = process.env.TEST_SEED ? parseInt(process.env.TEST_SEED, 10) : null;
+  const effectiveSeed = (seed != null) ? seed : (envSeed != null) ? envSeed : 42;
+  let s = effectiveSeed;
+  console.log('seed=' + effectiveSeed);
   const seededRand = () => {
     s = (s * 1664525 + 1013904223) >>> 0;
     return (s & 0x7fffffff) / 0x80000000;
@@ -50,7 +53,7 @@ function createGame(seed) {
     beforeParse(window) {
       window.AudioContext = FakeAudioContext;
       window.webkitAudioContext = FakeAudioContext;
-      if (seed != null) window.Math.random = seededRand;
+      window.Math.random = seededRand;
       window.addEventListener('error', e => {
         errors.push('window.error: ' + (e.error
           ? (e.error.stack || e.error.message) : e.message));

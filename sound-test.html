@@ -43,7 +43,7 @@
 <body>
 
 <h1>STAR WARS 1979 — SOUND TEST</h1>
-<div class="subtitle">Sounds generated with the current playTone formula (B=2500)</div>
+<div class="subtitle">Sounds derived from 6502 machine code at address 770</div>
 
 <table>
   <tr><th>Sound</th><th>When</th><th>Params</th><th>BASIC</th><th></th></tr>
@@ -51,20 +51,20 @@
 
 <div class="slider-row">
   <label>
-    Applesoft overhead (B):
-    <span class="slider-val" id="bVal">2500</span>
+    Step gap (ms):
+    <span class="slider-val" id="bVal">10</span>
   </label>
-  <input type="range" id="bSlider" min="500" max="6000" step="50" value="2500">
+  <input type="range" id="bSlider" min="0" max="20" step="0.5" value="10">
   <div class="note">
-    Higher B = lower frequencies (slower/deeper).
-    Lower B = higher frequencies (faster/higher).
-    Adjust to match the Apple II emulator.
+    Dead time between TA steps, simulating the Applesoft
+    interpreter overhead (FOR/NEXT/POKE/CALL) when no sound plays.
+    0 = continuous sweep. Higher = more staccato, distinct notes.
   </div>
 </div>
 
 <script>
 let audioCtx = null;
-let overheadB = 2500;
+let stepGap = 10;
 
 function ensureAudio() {
   if (!audioCtx) {
@@ -80,16 +80,19 @@ function ensureAudio() {
 function playTone(ab, ae, dn, cf) {
   const ctx = ensureAudio();
   if (!ctx) return;
-  const stepMs = Math.max(8, dn * 2);
-  const stepDur = stepMs / 1000;
   const peakGain = 0.04;
+  const gapMs = stepGap;
   let t = ctx.currentTime + 0.001;
   for (let c = 0; c < cf; c++) {
     const step = (ab <= ae) ? 1 : -1;
     for (let ta = ab; (step > 0 ? ta <= ae : ta >= ae); ta += step) {
-      const machCycles = Math.max(1, ta) * (5 * Math.max(1, dn) + 7);
-      const halfPeriod = machCycles + overheadB;
-      const freq = Math.max(20, Math.min(4000, 1023000 / (2 * halfPeriod)));
+      // 6502 routine at 770: inner loop is 10 cyc/iter (DEY+BNE+DEX+BNE).
+      // Half-period = TA*10+9 cycles. DN controls duration via Y-wrap
+      // counting: ~256*DN/TA toggles per step.
+      const halfCyc = Math.max(1, ta) * 10 + 9;
+      const freq = Math.max(20, Math.min(15000, 1023000 / (2 * halfCyc)));
+      const toggles = Math.max(2, 256 * Math.max(1, dn) / Math.max(1, ta));
+      const stepDur = toggles * halfCyc / 1023000;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'square';
@@ -101,7 +104,7 @@ function playTone(ab, ae, dn, cf) {
       osc.connect(gain).connect(ctx.destination);
       osc.start(t);
       osc.stop(t + stepDur + 0.005);
-      t += stepDur;
+      t += stepDur + gapMs / 1000;
     }
   }
 }
@@ -146,8 +149,8 @@ document.querySelector('table').addEventListener('click', function(e) {
 const bSlider = document.getElementById('bSlider');
 const bVal = document.getElementById('bVal');
 bSlider.addEventListener('input', function() {
-  overheadB = parseInt(this.value);
-  bVal.textContent = overheadB;
+  stepGap = parseFloat(this.value);
+  bVal.textContent = stepGap;
 });
 </script>
 
