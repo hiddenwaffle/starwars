@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Star Wars 1979 — Sound Test</title>
+<style>
+  body {
+    background: #111;
+    color: #0f0;
+    font-family: monospace;
+    font-size: 16px;
+    padding: 2em;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  h1 { color: #0f0; font-size: 1.4em; margin-bottom: 0.3em; }
+  .subtitle { color: #888; font-size: 0.85em; margin-bottom: 2em; }
+  table { border-collapse: collapse; width: 100%; }
+  th { text-align: left; color: #888; padding: 0.3em 0.8em; border-bottom: 1px solid #333; }
+  td { padding: 0.5em 0.8em; border-bottom: 1px solid #222; vertical-align: top; }
+  .context { color: #999; font-size: 0.85em; }
+  .sound-name { font-weight: bold; }
+  .params { color: #888; font-size: 0.85em; }
+  .basic-line { color: #666; font-size: 0.8em; }
+  button {
+    background: #222;
+    color: #0f0;
+    border: 1px solid #0f0;
+    padding: 0.3em 1.2em;
+    font-family: monospace;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  button:hover { background: #0f0; color: #111; }
+  button:active { background: #0a0; }
+  .slider-row { margin-top: 2em; padding: 1em; border: 1px solid #333; }
+  .slider-row label { display: block; margin-bottom: 0.5em; }
+  .slider-row input[type=range] { width: 300px; vertical-align: middle; }
+  .slider-val { color: #0f0; display: inline-block; width: 60px; }
+  .note { color: #666; font-size: 0.8em; margin-top: 0.5em; }
+</style>
+</head>
+<body>
+
+<h1>STAR WARS 1979 — SOUND TEST</h1>
+<div class="subtitle">Sounds generated with the current playTone formula (B=2500)</div>
+
+<table>
+  <tr><th>Sound</th><th>When</th><th>Params</th><th>BASIC</th><th></th></tr>
+</table>
+
+<div class="slider-row">
+  <label>
+    Applesoft overhead (B):
+    <span class="slider-val" id="bVal">2500</span>
+  </label>
+  <input type="range" id="bSlider" min="500" max="6000" step="50" value="2500">
+  <div class="note">
+    Higher B = lower frequencies (slower/deeper).
+    Lower B = higher frequencies (faster/higher).
+    Adjust to match the Apple II emulator.
+  </div>
+</div>
+
+<script>
+let audioCtx = null;
+let overheadB = 2500;
+
+function ensureAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch (e) { return null; }
+  }
+  if (audioCtx.state === 'suspended') {
+    try { audioCtx.resume(); } catch (e) {}
+  }
+  return audioCtx;
+}
+
+function playTone(ab, ae, dn, cf) {
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  const stepMs = Math.max(8, dn * 2);
+  const stepDur = stepMs / 1000;
+  const peakGain = 0.04;
+  let t = ctx.currentTime + 0.001;
+  for (let c = 0; c < cf; c++) {
+    const step = (ab <= ae) ? 1 : -1;
+    for (let ta = ab; (step > 0 ? ta <= ae : ta >= ae); ta += step) {
+      const machCycles = Math.max(1, ta) * (5 * Math.max(1, dn) + 7);
+      const halfPeriod = machCycles + overheadB;
+      const freq = Math.max(20, Math.min(4000, 1023000 / (2 * halfPeriod)));
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(peakGain, t + stepDur * 0.05);
+      gain.gain.setValueAtTime(peakGain, t + stepDur * 0.75);
+      gain.gain.linearRampToValueAtTime(0, t + stepDur);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + stepDur + 0.005);
+      t += stepDur;
+    }
+  }
+}
+
+const sounds = [
+  { name: 'takeoff',    ab: 1,   ae: 10,  dn: 5,  cf: 4, basic: 2740,
+    context: 'Millennium Falcon escapes at end of game' },
+  { name: 'blaster',    ab: 5,   ae: 20,  dn: 3,  cf: 1, basic: 2750,
+    context: 'Player or soldier fires a blaster' },
+  { name: 'sabotage',   ab: 25,  ae: 30,  dn: 5,  cf: 1, basic: 2760,
+    context: 'Player sabotages a room' },
+  { name: 'explosion',  ab: 20,  ae: 20,  dn: 50, cf: 6, basic: 2770,
+    context: 'Room explodes (permanent damage)' },
+  { name: 'kill',       ab: 75,  ae: 75,  dn: 30, cf: 1, basic: 2780,
+    context: 'Enemy or NPC killed (overlaps with attack sound)' },
+  { name: 'weaponBust', ab: 11,  ae: 15,  dn: 2,  cf: 4, basic: 2790,
+    context: 'Non-killing hit; equipment may break (overlaps with attack sound)' },
+  { name: 'sabre',      ab: 100, ae: 115, dn: 3,  cf: 1, basic: 2800,
+    context: 'Sabre toggled on/off; sabre attack; Vader arrives or swings his sabre' },
+  { name: 'click',      ab: 50,  ae: 50,  dn: 1,  cf: 1, basic: 2820,
+    context: 'GIVE menu \u2014 transferring an item' },
+];
+
+const table = document.querySelector('table');
+for (const s of sounds) {
+  const tr = document.createElement('tr');
+  tr.innerHTML =
+    '<td class="sound-name">' + s.name + '</td>' +
+    '<td class="context">' + s.context + '</td>' +
+    '<td class="params">AB=' + s.ab + ' AE=' + s.ae + ' DN=' + s.dn + ' CF=' + s.cf + '</td>' +
+    '<td class="basic-line">LINE ' + s.basic + '</td>' +
+    '<td><button data-sound="' + s.name + '">PLAY</button></td>';
+  table.appendChild(tr);
+}
+
+document.querySelector('table').addEventListener('click', function(e) {
+  if (e.target.tagName !== 'BUTTON') return;
+  const s = sounds.find(x => x.name === e.target.dataset.sound);
+  if (s) playTone(s.ab, s.ae, s.dn, s.cf);
+});
+
+const bSlider = document.getElementById('bSlider');
+const bVal = document.getElementById('bVal');
+bSlider.addEventListener('input', function() {
+  overheadB = parseInt(this.value);
+  bVal.textContent = overheadB;
+});
+</script>
+
+</body>
+</html>
