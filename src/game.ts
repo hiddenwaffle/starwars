@@ -111,7 +111,7 @@ messages.addEventListener('click', () => {
 let mode: string = 'normal';
 
 let lineDelay = 0;
-let soundWait = true;
+let soundWaitPct = 200;
 let lineWrap: HTMLElement | null = null;
 let pendingLines: HTMLElement[] = [];
 const lineSounds = new WeakMap<HTMLElement, {play: () => void, durationMs: number}[]>();
@@ -166,7 +166,8 @@ async function drainLines(): Promise<void> {
     if (sounds) {
       for (const s of sounds) { s.play(); soundMs += s.durationMs; }
     }
-    await sleep(soundWait ? Math.max(lineDelay, soundMs) : lineDelay);
+    const extra = soundMs > lineDelay ? (soundMs - lineDelay) * soundWaitPct / 100 : 0;
+    await sleep(lineDelay + extra);
   }
   if (lineWrap) {
     lineWrap.style.display = '';
@@ -2284,8 +2285,8 @@ function wireUi(): void {
 // -------- Main --------
 
 async function gameLoop(): Promise<void> {
-  lineDelay = (window as any).__lineDelay ?? 500;
-  soundWait = (window as any).__soundWait ?? true;
+  lineDelay = (window as any).__lineDelay ?? 350;
+  soundWaitPct = (window as any).__soundWaitPct ?? 200;
   palette.classList.remove('pre-game');
   // BASIC line 560: GOSUB 1750 before the T8 loop -> initial enterRoom
   enterRoom();
