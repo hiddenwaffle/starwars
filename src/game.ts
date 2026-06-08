@@ -111,9 +111,10 @@ messages.addEventListener('click', () => {
 let mode: string = 'normal';
 
 let lineDelay = 0;
+let soundWait = true;
 let lineWrap: HTMLElement | null = null;
 let pendingLines: HTMLElement[] = [];
-const lineSounds = new WeakMap<HTMLElement, (() => void)[]>();
+const lineSounds = new WeakMap<HTMLElement, {play: () => void, durationMs: number}[]>();
 
 function sleep(ms: number): Promise<void> {
   if (ms <= 0) return Promise.resolve();
@@ -161,8 +162,11 @@ async function drainLines(): Promise<void> {
     w.style.display = '';
     scrollMessagesToBottom();
     const sounds = lineSounds.get(w);
-    if (sounds) for (const s of sounds) s();
-    await sleep(lineDelay);
+    let soundMs = 0;
+    if (sounds) {
+      for (const s of sounds) { s.play(); soundMs += s.durationMs; }
+    }
+    await sleep(soundWait ? Math.max(lineDelay, soundMs) : lineDelay);
   }
   if (lineWrap) {
     lineWrap.style.display = '';
@@ -175,7 +179,7 @@ function flushLines(): void {
   for (const w of pendingLines) {
     w.style.display = '';
     const sounds = lineSounds.get(w);
-    if (sounds) for (const s of sounds) s();
+    if (sounds) for (const s of sounds) s.play();
   }
   pendingLines = [];
   if (lineWrap) { lineWrap.style.display = ''; lineWrap = null; }
@@ -1020,7 +1024,19 @@ function playTone(ab: number, ae: number, dn: number, cf: number): void {
   }
   nextSoundTime = t;
 }
-function queueSound(play: () => void): void {
+function toneDuration(ab: number, ae: number, dn: number, cf: number): number {
+  let total = 0;
+  const step = (ab <= ae) ? 1 : -1;
+  for (let c = 0; c < cf; c++) {
+    for (let ta = ab; (step > 0 ? ta <= ae : ta >= ae); ta += step) {
+      const halfCyc = Math.max(1, ta) * 10 + 9;
+      const toggles = Math.max(2, 256 * Math.max(1, dn) / Math.max(1, ta));
+      total += toggles * halfCyc / 1023000 + 0.011;
+    }
+  }
+  return total * 1000;
+}
+function queueSound(play: () => void, durationMs: number): void {
   if (lineDelay === 0) { play(); return; }
   let target = pendingLines.length > 0 ? pendingLines[pendingLines.length - 1] : lineWrap;
   if (!target) {
@@ -1031,10 +1047,10 @@ function queueSound(play: () => void): void {
   }
   let arr = lineSounds.get(target);
   if (!arr) { arr = []; lineSounds.set(target, arr); }
-  arr.push(play);
+  arr.push({play, durationMs});
 }
 function snd(ab: number, ae: number, dn: number, cf: number): void {
-  queueSound(() => playTone(ab, ae, dn, cf));
+  queueSound(() => playTone(ab, ae, dn, cf), toneDuration(ab, ae, dn, cf));
 }
 const SND = {
   takeoff:    () => snd(1,   10,  5,  4),  // BASIC 2740
@@ -2268,7 +2284,8 @@ function wireUi(): void {
 // -------- Main --------
 
 async function gameLoop(): Promise<void> {
-  lineDelay = 50;
+  lineDelay = (window as any).__lineDelay ?? 500;
+  soundWait = (window as any).__soundWait ?? true;
   palette.classList.remove('pre-game');
   // BASIC line 560: GOSUB 1750 before the T8 loop -> initial enterRoom
   enterRoom();
