@@ -90,7 +90,7 @@
         <span>Line delay</span>
         <span class="slider-val" id="ldVal">50ms</span>
       </div>
-      <input type="range" id="ldSlider" min="10" max="200" step="5" value="50">
+      <input type="range" id="ldSlider" min="10" max="1000" step="5" value="50">
     </div>
     <div class="slider-row">
       <div class="slider-top">
@@ -214,7 +214,7 @@ const SOLDIER_OUTCOMES = [
   // kill
   function(steps, i) {
     steps.push({ text: 'A SOLDIER FIRES AT PLAYER', sounds: ['blaster'] });
-    steps.push({ text: ' SOLDIER--HIT AND KILLED!', sounds: ['kill'] });
+    steps.push({ text: ' SOLDIER--HIT AND KILLED!', sounds: ['kill', 'weaponBust'] });
   },
   // hit + weaponBust + weapon destroyed
   function(steps, i) {
@@ -230,7 +230,7 @@ const SOLDIER_OUTCOMES = [
   // kill
   function(steps, i) {
     steps.push({ text: 'A SOLDIER FIRES AT PLAYER', sounds: ['blaster'] });
-    steps.push({ text: ' SOLDIER--HIT AND KILLED!', sounds: ['kill'] });
+    steps.push({ text: ' SOLDIER--HIT AND KILLED!', sounds: ['kill', 'weaponBust'] });
   },
 ];
 
@@ -251,14 +251,14 @@ function buildScenario() {
         if (hasVader) {
           steps.push({ text: ' A HIT!', sounds: ['weaponBust'] });
         } else {
-          steps.push({ text: ' SOLDIER--HIT AND KILLED!', sounds: ['kill'] });
+          steps.push({ text: ' SOLDIER--HIT AND KILLED!', sounds: ['kill', 'weaponBust'] });
         }
       } else if (weapon === 'sabre') {
         steps.push({ text: 'ATTACKING ' + target, sounds: ['sabre'] });
         if (hasVader) {
           steps.push({ text: ' A HIT!', sounds: ['weaponBust'] });
         } else {
-          steps.push({ text: ' SOLDIER--HIT AND KILLED!', sounds: ['kill'] });
+          steps.push({ text: ' SOLDIER--HIT AND KILLED!', sounds: ['kill', 'weaponBust'] });
         }
       } else {
         // hands - no attack sound, combatResolve may still produce sounds
@@ -266,7 +266,7 @@ function buildScenario() {
         if (hasVader) {
           steps.push({ text: ' A MISS!' });
         } else {
-          steps.push({ text: ' SOLDIER--HIT AND KILLED!', sounds: ['kill'] });
+          steps.push({ text: ' SOLDIER--HIT AND KILLED!', sounds: ['kill', 'weaponBust'] });
         }
       }
       steps.push({ text: '---', sep: true });
