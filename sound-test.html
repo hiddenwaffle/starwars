@@ -52,9 +52,9 @@
 <div class="slider-row">
   <label>
     Step gap (ms):
-    <span class="slider-val" id="bVal">10</span>
+    <span class="slider-val" id="bVal">11</span>
   </label>
-  <input type="range" id="bSlider" min="0" max="20" step="0.5" value="10">
+  <input type="range" id="bSlider" min="0" max="20" step="0.5" value="11">
   <div class="note">
     Dead time between TA steps, simulating the Applesoft
     interpreter overhead (FOR/NEXT/POKE/CALL) when no sound plays.
@@ -64,7 +64,7 @@
 
 <script>
 let audioCtx = null;
-let stepGap = 10;
+let stepGap = 11;
 
 function ensureAudio() {
   if (!audioCtx) {

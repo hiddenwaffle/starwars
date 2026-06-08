@@ -1015,7 +1015,7 @@ function playTone(ab: number, ae: number, dn: number, cf: number): void {
       osc.connect(gain).connect(ctx.destination);
       osc.start(t);
       osc.stop(t + stepDur + 0.005);
-      t += stepDur + 0.01;
+      t += stepDur + 0.011;
     }
   }
   nextSoundTime = t;
