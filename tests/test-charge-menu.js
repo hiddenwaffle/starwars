@@ -7,7 +7,7 @@ const { createGame } = require('./harness');
 
 async function run() {
   const g = createGame();
-  const { document, messages, errors, wait } = g;
+  const { document, messages, errors, wait, waitForInput } = g;
 
   await g.boot('CADET');
 
@@ -18,7 +18,7 @@ async function run() {
   document.querySelector('.pi-toggle').click();
   await wait(40);
   document.getElementById('charge-test-btn').click();
-  await wait(80);
+  await waitForInput(3000);
 
   // Open the CHARGE menu by clicking the trigger.
   const trigger = document.querySelector('#wrap-charge .menu-trigger');
@@ -53,7 +53,7 @@ async function run() {
   console.log('  menu still open?', chargeMenu.classList.contains('open'));
   console.log('--- click player:S (this is the last; should auto-fire)');
   clickPick('player:S');
-  await wait(200);
+  await waitForInput(5000);
   console.log('  menu still open?', chargeMenu.classList.contains('open'));
 
   // Inspect output.

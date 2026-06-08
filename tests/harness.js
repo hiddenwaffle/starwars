@@ -98,6 +98,17 @@ function createGame(seed) {
     return null;
   }
 
+  // Poll until messages.textContent includes the given substring.
+  async function waitForText(text, timeoutMs = 5000) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      if (errors.length > 0) return false;
+      if (getMessages().includes(text)) return true;
+      await wait(20);
+    }
+    return false;
+  }
+
   // Poll for the .term-cursor element that anyKey() creates.
   async function waitForCursor(timeoutMs = 2000) {
     const start = Date.now();
@@ -148,8 +159,8 @@ function createGame(seed) {
     dom, window, document, errors,
     messages, status, palette,
     wait, findInput, getMessages, getStatus,
-    pressKey, clickEl, waitForInput, waitForCursor, sendCommand,
-    pressAnyKey, boot, seededRand,
+    pressKey, clickEl, waitForInput, waitForText, waitForCursor,
+    sendCommand, pressAnyKey, boot, seededRand,
   };
 }
 

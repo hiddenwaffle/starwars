@@ -18,24 +18,21 @@ async function run() {
   document.querySelector('.pi-toggle').click();
   await wait(40);
   document.getElementById('charge-test-btn').click();
-  await wait(80);
 
   console.log('=== STATUS AFTER STAGING ===');
   console.log(g.getStatus());
 
   // Issue CHARGE SABRE; the player attack should land, then we expect a
   // prompt asking what Princess Leia should do.
-  const inp = await waitForInput(2000);
+  const inp = await waitForInput(3000);
   if (!inp) { console.log('NO INPUT before CHARGE'); return finalize(); }
   const lengthBefore = messages.textContent.length;
   inp.value = 'CHARGE SABRE';
   inp.dispatchEvent(new g.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-  // Let it settle long enough for sub-prompt to appear, then handle
-  // follower prompts (answer N = "do nothing" each time).
+  // Wait for each follower sub-prompt to appear, then answer N.
   for (let i = 0; i < 5; i++) {
-    await wait(120);
-    const cur = findInput();
-    if (!cur) continue;
+    const cur = await waitForInput(3000);
+    if (!cur) break;
     // Look at the prompt text
     const promptText = messages.textContent.slice(lengthBefore);
     const lastLines = promptText.split('\n').slice(-6).join(' / ');

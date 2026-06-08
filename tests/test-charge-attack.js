@@ -5,7 +5,7 @@ const { createGame } = require('./harness');
 
 async function run() {
   const g = createGame();
-  const { document, messages, errors, wait } = g;
+  const { document, messages, errors, wait, waitForInput } = g;
 
   await g.boot('CADET');
 
@@ -15,7 +15,7 @@ async function run() {
   document.querySelector('.pi-toggle').click();
   await wait(40);
   document.getElementById('charge-test-btn').click();
-  await wait(80);
+  await waitForInput(3000);
 
   const trigger = document.querySelector('#wrap-charge .menu-trigger');
   trigger.click();
@@ -35,7 +35,7 @@ async function run() {
   clickPick('wookie:A');
   await wait(20);
   clickPick('player:H');
-  await wait(250);
+  await waitForInput(5000);
 
   const after = messages.textContent.slice(lengthBefore);
   console.log('=== OUTPUT ===');

@@ -14,7 +14,7 @@ const { createGame } = require('./harness');
 
 async function run() {
   const g = createGame(314);
-  const { document, errors, messages, wait, sendCommand } = g;
+  const { document, errors, messages, wait, sendCommand, waitForText } = g;
 
   await g.boot('CADET');
 
@@ -22,11 +22,10 @@ async function run() {
   document.querySelector('.pi-toggle').click();
   await wait(40);
   document.getElementById('rescue-test-btn').click();
-  await wait(80);
   await sendCommand('MOVE EAST');
   await sendCommand('MOVE WEST');
   await sendCommand('TAKE-OFF');
-  await wait(200);
+  await waitForText('FINAL SCORE', 5000);
 
   // Game should be over now. Check body class and button visibility.
   const bodyGameOver = document.body.classList.contains('game-over');
@@ -47,7 +46,7 @@ async function run() {
   // Click MORE STATS.
   const lenBeforeClick = messages.textContent.length;
   moreStatsBtn.click();
-  await wait(80);
+  await waitForText('SCORE BREAKDOWN', 3000);
   const after = messages.textContent.slice(lenBeforeClick);
 
   const sawHeader   = after.includes('SCORE BREAKDOWN');

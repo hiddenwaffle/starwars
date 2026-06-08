@@ -9,7 +9,7 @@ const { createGame } = require('./harness');
 
 async function run() {
   const g = createGame();
-  const { document, messages, errors, wait, sendCommand } = g;
+  const { document, messages, errors, wait, sendCommand, waitForInput } = g;
 
   await g.boot('CADET');
 
@@ -20,7 +20,7 @@ async function run() {
   document.querySelector('.pi-toggle').click();
   await wait(40);
   document.getElementById('charge-test-btn').click();
-  await wait(80);
+  await waitForInput(3000);
 
   const attackSabre = document.querySelector('button[data-cmd="ATTACK SABRE"]');
   const chargeSabre = document.querySelector('button[data-charge-pick="player:S"]');
@@ -31,9 +31,10 @@ async function run() {
   console.log('CHARGE YOU SABRE visible:', visible(chargeSabre));
   const onOK = visible(attackSabre) && visible(chargeSabre);
 
-  // Turn the sabre off.
+  // Turn the sabre off. SABRE is a free action — wait for the game to
+  // loop back to the command prompt with updated palette state.
   await sendCommand('SABRE');
-  await wait(120);
+  await waitForInput(3000);
 
   console.log('--- with sabre OFF ---');
   console.log('ATTACK SABRE visible:', visible(attackSabre));
@@ -45,16 +46,17 @@ async function run() {
   // change. We verify the retry prompt text appears in messages.
   const lenBefore = messages.textContent.length;
   await sendCommand('CHARGE SABRE');
-  await wait(150);
+  // CHARGE SABRE with sabre off enters a retry prompt — wait for it.
+  await waitForInput(3000);
   const after = messages.textContent.slice(lenBefore);
   const sawRetry = after.includes('WANT TO ATTACK WITH');
   const sawSabreOffMsg = after.includes('TURN ON');
   console.log('typed CHARGE SABRE saw sabre-off msg:', sawSabreOffMsg);
   console.log('typed CHARGE SABRE saw retry prompt:', sawRetry);
 
-  // Get out of the retry loop by typing H.
+  // Get out of the retry loop by typing H (resolves CHARGE, turn consumed).
   await sendCommand('H');
-  await wait(100);
+  await waitForInput(5000);
 
   if (errors.length) {
     console.log('=== ERRORS ===');

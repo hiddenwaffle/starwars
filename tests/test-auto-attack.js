@@ -8,7 +8,7 @@ const { createGame } = require('./harness');
 
 async function run() {
   const g = createGame();
-  const { document, messages, errors, wait, sendCommand } = g;
+  const { document, messages, errors, wait, sendCommand, waitForInput } = g;
 
   await g.boot('CADET');
 
@@ -19,7 +19,11 @@ async function run() {
   document.querySelector('.pi-toggle').click();
   await wait(40);
   document.getElementById('charge-test-btn').click();
-  await wait(80);
+
+  // Wait for the game loop to reach the input prompt. With some seeds,
+  // Vader arrives on the first turn, adding extra status lines and a
+  // pending-line drain that push the async time past any fixed wait.
+  await waitForInput(3000);
 
   const autoAttackBtn = document.getElementById('auto-attack-btn');
 
@@ -31,10 +35,11 @@ async function run() {
   const labelOK = label.startsWith('Auto-Attack');
   console.log('label format OK:', labelOK);
 
-  // Click and verify attack fires.
+  // Click and verify attack fires. Wait for the next input prompt
+  // (turn fully resolved) instead of a fixed delay.
   const lengthBefore = messages.textContent.length;
   autoAttackBtn.click();
-  await wait(150);
+  await waitForInput(5000);
   const after = messages.textContent.slice(lengthBefore);
   console.log('=== output after Auto-Attack click ===');
   console.log(after);
@@ -52,10 +57,12 @@ async function run() {
   // Now turn the sabre OFF and click again — verify pickBestWeapon
   // skips sabre at click time even though the label didn't change.
   await sendCommand('SABRE');
-  await wait(120);
+  // SABRE is a free action (doesn't consume a turn), so the game
+  // returns to the same command prompt. Wait for it.
+  await waitForInput(3000);
   const lenBeforeOff = messages.textContent.length;
   autoAttackBtn.click();
-  await wait(150);
+  await waitForInput(5000);
   const afterOff = messages.textContent.slice(lenBeforeOff);
   console.log('=== output after sabre-OFF Auto-Attack click ===');
   console.log(afterOff);

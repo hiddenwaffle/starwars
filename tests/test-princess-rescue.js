@@ -7,7 +7,7 @@ const { createGame } = require('./harness');
 
 async function run() {
   const g = createGame(314);
-  const { document, errors, messages, wait, sendCommand } = g;
+  const { document, errors, messages, wait, sendCommand, waitForText } = g;
 
   await g.boot('CADET');
 
@@ -15,7 +15,6 @@ async function run() {
   document.querySelector('.pi-toggle').click();
   await wait(40);
   document.getElementById('rescue-test-btn').click();
-  await wait(80);
 
   // Move east to find princess.
   const lenBeforeMove = messages.textContent.length;
@@ -32,12 +31,11 @@ async function run() {
 
   // Walk back to the Hangar.
   await sendCommand('MOVE WEST');
-  await wait(60);
 
   // Take off.
   const lenBeforeTakeoff = messages.textContent.length;
   await sendCommand('TAKE-OFF');
-  await wait(150);
+  await waitForText('FINAL SCORE', 5000);
   const afterTakeoff = messages.textContent.slice(lenBeforeTakeoff);
   const sawEscape   = afterTakeoff.includes('TRACTOR BEAM IS INOPERABLE') ||
                       afterTakeoff.includes('LET\'S SEE HOW YOU DID');
