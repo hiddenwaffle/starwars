@@ -54,8 +54,9 @@ function createGame(seed) {
       window.AudioContext = FakeAudioContext;
       window.webkitAudioContext = FakeAudioContext;
       window.Math.random = seededRand;
-      window.__lineDelay = 50;   // fast drain for tests
-      window.__soundWaitPct = 0;  // don't wait for sound durations in tests
+      window.__lineDelay = 50;        // fast drain for tests
+      window.__soundLineDelay = 50;  // no extra delay for sound lines
+      window.__soundWaitPct = 0;     // don't wait for sound durations
       window.addEventListener('error', e => {
         errors.push('window.error: ' + (e.error
           ? (e.error.stack || e.error.message) : e.message));
