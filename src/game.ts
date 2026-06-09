@@ -996,7 +996,7 @@ function ensureAudio(): AudioContext | null {
 function playTone(ab: number, ae: number, dn: number, cf: number): void {
   const ctx = ensureAudio();
   if (!ctx) return;
-  const peakGain = 0.04;
+  const peakGain = 0.15;
   let t = Math.max(ctx.currentTime + 0.001, nextSoundTime);
   for (let c = 0; c < cf; c++) {
     const step = (ab <= ae) ? 1 : -1;

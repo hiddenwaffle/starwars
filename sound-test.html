@@ -80,7 +80,7 @@ function ensureAudio() {
 function playTone(ab, ae, dn, cf) {
   const ctx = ensureAudio();
   if (!ctx) return;
-  const peakGain = 0.04;
+  const peakGain = 0.15;
   const gapMs = stepGap;
   let t = ctx.currentTime + 0.001;
   for (let c = 0; c < cf; c++) {

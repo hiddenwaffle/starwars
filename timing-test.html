@@ -136,7 +136,7 @@ function playTone(ab, ae, dn, cf) {
   const ctx = ensureAudio();
   if (!ctx) return;
   const chain = document.getElementById('chainSounds').checked;
-  const peakGain = 0.04;
+  const peakGain = 0.15;
   let t = chain
     ? Math.max(ctx.currentTime + 0.001, nextSoundTime)
     : ctx.currentTime + 0.001;
