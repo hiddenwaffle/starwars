@@ -119,6 +119,9 @@ let slowCharDelay = 38;
 // "Dramatic beat" pause -- BASIC GOSUB 2720 (FOR 1 TO 250 skip-on-keypress
 // loop) called after rope-held, princess-found, and friendly-wookie text.
 let pauseBeatMs = 1200;
+// Time the prior command's text (e.g. "OK, SCATTER", "OK.") stays on
+// screen before HOME clears -- BASIC line 1820 FOR X = 1 TO 100: NEXT.
+let enterPauseMs = 800;
 let lineWrap: HTMLElement | null = null;
 let pendingLines: HTMLElement[] = [];
 const lineSounds = new WeakMap<HTMLElement, {play: () => void, durationMs: number}[]>();
@@ -1151,24 +1154,17 @@ function combatResolve(A1: number, D1: number, P1: number): void {
 // -------- Enter-room logic (BASIC 1750-1820) --------
 
 async function enterRoom(): Promise<void> {
-  // Reveal any buffered lines before restructuring the DOM.
+  // If the player's last command left text in the buffer (e.g. "OK."
+  // from MOVE, "OK, SCATTER" from FLEE), reveal it and pause so the
+  // player can read it -- BASIC keeps that text on screen until HOME
+  // at line 2510, gated by the FOR 1 TO 100 wait at line 1820.
+  const hadPending = pendingLines.length > 0 || lineWrap !== null;
   flushLines();
+  if (hadPending && enterPauseMs > 0) await sleep(enterPauseMs);
   // Next renderStatus() call will reveal lines with delay.
   statusSlow = true;
-  // Wrap all existing messages into a "dim-past" container so the
-  // current room's content stands out at full brightness, and
-  // everything before is one shade dimmer. Multi-room sessions chain
-  // these wrappers, but CSS uses absolute colors so all old text is
-  // the same dim level regardless of nesting depth.
-  if (messages.firstChild) {
-    const wrap = document.createElement('div');
-    wrap.className = 'dim-past';
-    while (messages.firstChild) {
-      wrap.appendChild(messages.firstChild);
-    }
-    messages.appendChild(wrap);
-  }
-  sceneBreak();
+  // BASIC HOME equivalent: clear the messages pane on room change.
+  messages.textContent = '';
   // Princess auto-join (line 1750)
   if (player.room === -princess.room) {
     out('YOU FOUND THE PRINCESS.'); nl();
@@ -2267,6 +2263,8 @@ function wireUi(): void {
   if (rescueTestBtn) rescueTestBtn.addEventListener('click', rescueTestSetup);
   const wookieTestBtn = document.getElementById('wookie-test-btn');
   if (wookieTestBtn) wookieTestBtn.addEventListener('click', wookieTestSetup);
+  const swingTestBtn = document.getElementById('swing-test-btn');
+  if (swingTestBtn) swingTestBtn.addEventListener('click', swingTestSetup);
 
   // MORE STATS button: only visible on game-over (CSS handles visibility).
   // Click once to dump the score breakdown into the messages area, then
@@ -2335,6 +2333,7 @@ async function gameLoop(): Promise<void> {
   soundWaitPct = (window as any).__soundWaitPct ?? 200;
   slowCharDelay = (window as any).__slowCharDelay ?? 38;
   pauseBeatMs = (window as any).__pauseBeatMs ?? 1200;
+  enterPauseMs = (window as any).__enterPauseMs ?? 800;
   // Filter buttons to room-1 state BEFORE revealing the palette, so the
   // user doesn't see the full default-visible set flash for a frame.
   updatePalette();
@@ -2455,6 +2454,25 @@ function wookieTestSetup(): void {
   vader.room = 22;
   rooms[1]!.soldiers = 0;
   rooms[2]!.soldiers = 0;
+  s9 = 0;
+  curSoldiers = [];
+  renderStatus();
+  updatePalette();
+}
+
+// Debug: stage a rope-swing scenario. Player in room 29 (chasm) with
+// rope already up, followers absent, no enemies. SWING immediately
+// runs the full ". . . UP, UP, AND AWAY--" + ROPE HELD + clear path.
+function swingTestSetup(): void {
+  if (!player || !rooms || !princess || !wookie) return;
+  player.room = 29;
+  flags.ropeUp = true;
+  princess.room = -42;
+  wookie.room = -2;
+  wookie.friendly = 0;
+  vader.room = 22;
+  rooms[29]!.soldiers = 0;
+  rooms[30]!.soldiers = 0;
   s9 = 0;
   curSoldiers = [];
   renderStatus();

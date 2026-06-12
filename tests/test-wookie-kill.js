@@ -18,10 +18,11 @@ async function runWithSeed(seed) {
   g.document.getElementById('wookie-test-btn').click();
   await g.wait(60);
 
-  const lenBefore = g.getMessages().length;
   await g.sendCommand('MOVE EAST');
   await g.wait(80);
-  const after = g.getMessages().slice(lenBefore);
+  // enterRoom clears messages on transition, so check the full current
+  // pane rather than slicing from a pre-MOVE length.
+  const after = g.getMessages();
 
   const greeted    = after.includes('LARGE, EXTREMELY');
   const killed     = after.includes('RIPS YOUR ARMS OUT');

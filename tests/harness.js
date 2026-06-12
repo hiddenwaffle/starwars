@@ -36,7 +36,8 @@ class FakeAudioContext {
   resume() { return Promise.resolve(); }
 }
 
-function createGame(seed) {
+function createGame(seed, opts) {
+  opts = opts || {};
   const errors = [];
   const envSeed = process.env.TEST_SEED ? parseInt(process.env.TEST_SEED, 10) : null;
   const effectiveSeed = (seed != null) ? seed : (envSeed != null) ? envSeed : 42;
@@ -54,11 +55,14 @@ function createGame(seed) {
       window.AudioContext = FakeAudioContext;
       window.webkitAudioContext = FakeAudioContext;
       window.Math.random = seededRand;
-      window.__lineDelay = 50;        // fast drain for tests
-      window.__soundLineDelay = 50;  // no extra delay for sound lines
-      window.__soundWaitPct = 0;     // don't wait for sound durations
-      window.__slowCharDelay = 0;    // no char-by-char delay for tests
-      window.__pauseBeatMs = 0;      // no dramatic-beat pause for tests
+      if (!opts.realTiming) {
+        window.__lineDelay = 50;        // fast drain for tests
+        window.__soundLineDelay = 50;  // no extra delay for sound lines
+        window.__soundWaitPct = 0;     // don't wait for sound durations
+        window.__slowCharDelay = 0;    // no char-by-char delay for tests
+        window.__pauseBeatMs = 0;      // no dramatic-beat pause for tests
+        window.__enterPauseMs = 0;     // no pre-clear pause for tests
+      }
       window.addEventListener('error', e => {
         errors.push('window.error: ' + (e.error
           ? (e.error.stack || e.error.message) : e.message));
