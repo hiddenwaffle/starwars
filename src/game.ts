@@ -115,7 +115,10 @@ let soundLineDelay = 0;
 let soundWaitPct = 200;
 // Per-char delay for slowOut(), matching Applesoft SPEED=150 used at
 // BASIC lines 1190, 1270, 1450 (rope toss, rope swing, falcon takeoff).
-let slowCharDelay = 100;
+let slowCharDelay = 38;
+// "Dramatic beat" pause -- BASIC GOSUB 2720 (FOR 1 TO 250 skip-on-keypress
+// loop) called after rope-held, princess-found, and friendly-wookie text.
+let pauseBeatMs = 1200;
 let lineWrap: HTMLElement | null = null;
 let pendingLines: HTMLElement[] = [];
 const lineSounds = new WeakMap<HTMLElement, {play: () => void, durationMs: number}[]>();
@@ -204,6 +207,13 @@ async function slowOut(text: string, modeOverride?: string): Promise<void> {
     scrollMessagesToBottom();
     if (slowCharDelay > 0) await sleep(slowCharDelay);
   }
+}
+
+// Drain pending lines so they're visible, then sleep -- emulates BASIC
+// GOSUB 2720 (skippable ~400ms pause after a dramatic message).
+async function pauseBeat(): Promise<void> {
+  await drainLines();
+  if (pauseBeatMs > 0) await sleep(pauseBeatMs);
 }
 
 function flushLines(): void {
@@ -1140,7 +1150,7 @@ function combatResolve(A1: number, D1: number, P1: number): void {
 
 // -------- Enter-room logic (BASIC 1750-1820) --------
 
-function enterRoom(): void {
+async function enterRoom(): Promise<void> {
   // Reveal any buffered lines before restructuring the DOM.
   flushLines();
   // Next renderStatus() call will reveal lines with delay.
@@ -1164,6 +1174,7 @@ function enterRoom(): void {
     out('YOU FOUND THE PRINCESS.'); nl();
     out('SHE THANKS YOU AND FOLLOWS YOU.'); nl();
     princess.room = player.room;
+    await pauseBeat();
   }
   // Wookie: 1760-1790
   if (player.room === -wookie.room) {
@@ -1181,6 +1192,7 @@ function enterRoom(): void {
       out('WITH YOU.'); nl();
       wookie.room = player.room;
       wookie.friendly = 1;
+      await pauseBeat();
     }
   }
   // Re-roll soldier stats for the new room (BASIC 1810)
@@ -1475,7 +1487,7 @@ async function cmdMove(rest: string): Promise<boolean> {
   if (wookie.room === fromRoom) wookie.room = t;
   player.room = t;
   visited.add(t);
-  enterRoom();
+  await enterRoom();
   return true;
 }
 
@@ -1610,12 +1622,13 @@ async function cmdSwing(): Promise<boolean> {
     return true;
   }
   out('THE ROPE HELD, LUCKY YOU'); nl();
+  await pauseBeat();
   const dest = (player.room === 30) ? 29 : 30;
   if (princess.room === player.room) princess.room = dest;
   if (wookie.room   === player.room) wookie.room   = dest;
   player.room = dest;
   visited.add(dest);
-  enterRoom();
+  await enterRoom();
   return true;
 }
 
@@ -1681,7 +1694,7 @@ async function cmdGive(rest: string): Promise<boolean> {
   return true;
 }
 
-function cmdFlee(): boolean {
+async function cmdFlee(): Promise<boolean> {
   out('OK, SCATTER'); nl();
   const here = player.room;
   const room = rooms[here]!;
@@ -1702,7 +1715,7 @@ function cmdFlee(): boolean {
   // Followers not with player become "lost" (negative)
   if (princess.room !== player.room && princess.room > 0) princess.room = -princess.room;
   if (wookie.room   !== player.room && wookie.room   > 0) wookie.room   = -wookie.room;
-  enterRoom();
+  await enterRoom();
   return true;
 }
 
@@ -2320,13 +2333,14 @@ async function gameLoop(): Promise<void> {
   lineDelay = (window as any).__lineDelay ?? 50;
   soundLineDelay = (window as any).__soundLineDelay ?? 350;
   soundWaitPct = (window as any).__soundWaitPct ?? 200;
-  slowCharDelay = (window as any).__slowCharDelay ?? 100;
+  slowCharDelay = (window as any).__slowCharDelay ?? 38;
+  pauseBeatMs = (window as any).__pauseBeatMs ?? 1200;
   // Filter buttons to room-1 state BEFORE revealing the palette, so the
   // user doesn't see the full default-visible set flash for a frame.
   updatePalette();
   palette.classList.remove('pre-game');
   // BASIC line 560: GOSUB 1750 before the T8 loop -> initial enterRoom
-  enterRoom();
+  await enterRoom();
   while (!gameOver && t8 > 0) {
     // Vader moves first (BASIC 570-600). After his move, we redraw status
     // so the player sees if he just arrived.
