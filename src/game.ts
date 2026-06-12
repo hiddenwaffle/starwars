@@ -1131,13 +1131,6 @@ function enterRoom(): void {
       wrap.appendChild(messages.firstChild);
     }
     messages.appendChild(wrap);
-    // Push new room content toward the top of the visible area, similar
-    // to the Apple II's HOME (clear screen) on room entry.  Eight blank
-    // lines is enough to scroll old content out of view while still
-    // leaving scrollback accessible.
-    for (let i = 0; i < 8; i++) {
-      messages.appendChild(document.createTextNode('\n'));
-    }
   }
   sceneBreak();
   // Princess auto-join (line 1750)
