@@ -57,6 +57,7 @@ function createGame(seed) {
       window.__lineDelay = 50;        // fast drain for tests
       window.__soundLineDelay = 50;  // no extra delay for sound lines
       window.__soundWaitPct = 0;     // don't wait for sound durations
+      window.__slowCharDelay = 0;    // no char-by-char delay for tests
       window.addEventListener('error', e => {
         errors.push('window.error: ' + (e.error
           ? (e.error.stack || e.error.message) : e.message));

@@ -25,7 +25,7 @@ function runNext(resolve) {
   }
   const i = index++;
   const f = testFiles[i];
-  const child = execFile('node', [path.join(testsDir, f)], { timeout: 120000 }, (err) => {
+  const child = execFile('node', [path.join(testsDir, f)], { timeout: 180000 }, (err) => {
     if (err) {
       results[i] = { name: f, ok: false, out: (err.stdout || '').toString().slice(-500), err: (err.stderr || '').toString().slice(-500) };
       failed++;

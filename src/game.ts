@@ -113,6 +113,9 @@ let mode: string = 'normal';
 let lineDelay = 0;
 let soundLineDelay = 0;
 let soundWaitPct = 200;
+// Per-char delay for slowOut(), matching Applesoft SPEED=150 used at
+// BASIC lines 1190, 1270, 1450 (rope toss, rope swing, falcon takeoff).
+let slowCharDelay = 100;
 let lineWrap: HTMLElement | null = null;
 let pendingLines: HTMLElement[] = [];
 const lineSounds = new WeakMap<HTMLElement, {play: () => void, durationMs: number}[]>();
@@ -177,6 +180,29 @@ async function drainLines(): Promise<void> {
     lineWrap.style.display = '';
     lineWrap = null;
     scrollMessagesToBottom();
+  }
+}
+
+// Type a passage character-by-character — Applesoft SPEED=150 equivalent.
+// Drains any pending lines first so prior content shows with normal cadence,
+// then reveals the current line wrapper and appends chars with delay.
+async function slowOut(text: string, modeOverride?: string): Promise<void> {
+  if (!text) return;
+  await drainLines();
+  const m = modeOverride !== undefined ? modeOverride : mode;
+  if (!lineWrap) {
+    lineWrap = document.createElement('span');
+    messages.appendChild(lineWrap);
+  }
+  lineWrap.style.display = '';
+  const span = document.createElement('span');
+  if (m === 'inverse') span.className = 'inv';
+  else if (m === 'flash') span.className = 'fls';
+  lineWrap.appendChild(span);
+  for (let i = 0; i < text.length; i++) {
+    span.appendChild(document.createTextNode(text[i]));
+    scrollMessagesToBottom();
+    if (slowCharDelay > 0) await sleep(slowCharDelay);
   }
 }
 
@@ -1543,7 +1569,7 @@ function cmdSabotage(): boolean {
   return true;
 }
 
-function cmdToss(): boolean {
+async function cmdToss(): Promise<boolean> {
   if (blockedByEnemies()) { emitBlocked(); return false; }
   if (flags.ropeUp) { out("THE ROPE'S ALREADY UP!"); nl(); return false; }
   if (player.room !== 29 && player.room !== 30) {
@@ -1551,7 +1577,7 @@ function cmdToss(): boolean {
     out('FROM THE ' + getRoomName(player.room) + '?'); nl();
     return false;
   }
-  out('THE ROPE SWINGS--FLIES--AND ');
+  await slowOut('THE ROPE SWINGS--FLIES--AND ');
   if (Math.random() < 0.5) {
     out('MISSES.'); nl();
     out('BETTER LUCK NEXT TIME.'); nl();
@@ -1563,7 +1589,7 @@ function cmdToss(): boolean {
   return true;
 }
 
-function cmdSwing(): boolean {
+async function cmdSwing(): Promise<boolean> {
   if (blockedByEnemies()) { emitBlocked(); return false; }
   if (!flags.ropeUp) { out("THE ROPE ISN'T UP!"); nl(); return false; }
   if (player.room !== 29 && player.room !== 30) {
@@ -1577,7 +1603,7 @@ function cmdSwing(): boolean {
   if (princess.room === player.room) { out('    ' + NAMES[2]); nl(); J += 1; }
   if (wookie.room   === player.room) { out('    ' + NAMES[3]); nl(); J += 2; }
   out('OKAY, NOW'); nl();
-  out('. . . UP, UP, AND AWAY--'); nl();
+  await slowOut('. . . UP, UP, AND AWAY--'); nl();
   if (J > 1 + irand(4)) {
     out('EGAD, THE ROPE BROKE', 'inverse'); nl();
     die();
@@ -1593,16 +1619,16 @@ function cmdSwing(): boolean {
   return true;
 }
 
-function cmdTakeOff(): boolean {
+async function cmdTakeOff(): Promise<boolean> {
   if (player.room !== 1) {
     out('HOW CAN YOU TAKE OFF FROM THE'); nl();
     out('    ' + getRoomName(player.room) + '?'); nl();
     return false;
   }
   SND.takeoff();
-  out('THE MILLENIUM FALCON IS TAKING OFF.'); nl();
-  out('LEAVING HANGER NOW.'); nl();
-  out('APPROACHING TRACTOR BEAM.'); nl();
+  await slowOut('THE MILLENIUM FALCON IS TAKING OFF.'); nl();
+  await slowOut('LEAVING HANGER NOW.'); nl();
+  await slowOut('APPROACHING TRACTOR BEAM.'); nl();
   if (rooms[9]!.damage === 0 && rooms[28]!.damage === 0) {
     out('THE TRACTOR BEAM LATCHES ON.', 'inverse'); nl();
     out('STRESSES TEAR THE MILLENIUM FALCON', 'inverse'); nl();
@@ -2294,6 +2320,7 @@ async function gameLoop(): Promise<void> {
   lineDelay = (window as any).__lineDelay ?? 50;
   soundLineDelay = (window as any).__soundLineDelay ?? 350;
   soundWaitPct = (window as any).__soundWaitPct ?? 200;
+  slowCharDelay = (window as any).__slowCharDelay ?? 100;
   // Filter buttons to room-1 state BEFORE revealing the palette, so the
   // user doesn't see the full default-visible set flash for a frame.
   updatePalette();
