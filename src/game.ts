@@ -2207,7 +2207,9 @@ function wireUi(): void {
     // Priority 2: top-level palette buttons (not inside a .menu)
     for (const el of palette.querySelectorAll('button[data-key="' + key + '"]')) {
       const btn = el as HTMLElement;
-      if (btn.style.display === 'none') continue;
+      // offsetParent catches CSS-hidden buttons (e.g. palette-restart-btn
+      // is display:none until body.game-over) as well as inline-hidden.
+      if (btn.offsetParent === null) continue;
       if (btn.closest('.menu')) continue;
       const wrap = btn.closest('.menu-wrap') as HTMLElement | null;
       if (wrap && wrap.style.display === 'none') continue;
@@ -2292,6 +2294,9 @@ async function gameLoop(): Promise<void> {
   lineDelay = (window as any).__lineDelay ?? 50;
   soundLineDelay = (window as any).__soundLineDelay ?? 350;
   soundWaitPct = (window as any).__soundWaitPct ?? 200;
+  // Filter buttons to room-1 state BEFORE revealing the palette, so the
+  // user doesn't see the full default-visible set flash for a frame.
+  updatePalette();
   palette.classList.remove('pre-game');
   // BASIC line 560: GOSUB 1750 before the T8 loop -> initial enterRoom
   enterRoom();
