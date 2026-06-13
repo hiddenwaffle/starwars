@@ -118,10 +118,10 @@ let soundWaitPct = 200;
 let slowCharDelay = 38;
 // "Dramatic beat" pause -- BASIC GOSUB 2720 (FOR 1 TO 250 skip-on-keypress
 // loop) called after rope-held, princess-found, and friendly-wookie text.
-let pauseBeatMs = 1200;
+let pauseBeatMs = 2400;
 // Time the prior command's text (e.g. "OK, SCATTER", "OK.") stays on
 // screen before HOME clears -- BASIC line 1820 FOR X = 1 TO 100: NEXT.
-let enterPauseMs = 800;
+let enterPauseMs = 500;
 let lineWrap: HTMLElement | null = null;
 let pendingLines: HTMLElement[] = [];
 const lineSounds = new WeakMap<HTMLElement, {play: () => void, durationMs: number}[]>();
@@ -1104,7 +1104,7 @@ const SND = {
   kill:       () => { snd(75, 75, 30, 1); snd(11, 15, 2, 4); },  // BASIC 2780 falls through to 2790
   weaponBust: () => snd(11,  15,  2,  4),  // BASIC 2790
   sabre:      () => snd(100, 115, 3,  1),  // BASIC 2800
-  click:      () => snd(50,  50,  1,  1),  // BASIC 2820 short click
+  click:      () => snd(100, 100, 3,  1),  // BASIC 2820 click (PEEK-based) -- approximate with deeper/longer tone
 };
 
 // -------- Combat resolution (BASIC line 840) --------
@@ -2332,8 +2332,8 @@ async function gameLoop(): Promise<void> {
   soundLineDelay = (window as any).__soundLineDelay ?? 350;
   soundWaitPct = (window as any).__soundWaitPct ?? 200;
   slowCharDelay = (window as any).__slowCharDelay ?? 38;
-  pauseBeatMs = (window as any).__pauseBeatMs ?? 1200;
-  enterPauseMs = (window as any).__enterPauseMs ?? 800;
+  pauseBeatMs = (window as any).__pauseBeatMs ?? 2400;
+  enterPauseMs = (window as any).__enterPauseMs ?? 500;
   // Filter buttons to room-1 state BEFORE revealing the palette, so the
   // user doesn't see the full default-visible set flash for a frame.
   updatePalette();
