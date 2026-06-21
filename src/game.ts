@@ -110,18 +110,32 @@ messages.addEventListener('click', () => {
 
 let mode: string = 'normal';
 
-let lineDelay = 0;
-let soundLineDelay = 0;
-let soundWaitPct = 200;
-// Per-char delay for slowOut(), matching Applesoft SPEED=150 used at
-// BASIC lines 1190, 1270, 1450 (rope toss, rope swing, falcon takeoff).
-let slowCharDelay = 38;
-// "Dramatic beat" pause -- BASIC GOSUB 2720 (FOR 1 TO 250 skip-on-keypress
-// loop) called after rope-held, princess-found, and friendly-wookie text.
-let pauseBeatMs = 2400;
-// Time the prior command's text (e.g. "OK, SCATTER", "OK.") stays on
-// screen before HOME clears -- BASIC line 1820 FOR X = 1 TO 100: NEXT.
-let enterPauseMs = 500;
+// ---- Unified timing model ----
+// All delays derive from one knob: how much slower the user's reference
+// emulator runs vs. real Apple II hardware. Each derived constant maps
+// to an explicit BASIC primitive whose execution cost is known.
+let emulatorScale = 6.5;
+// Multiplier on synchronous sound waits. BASIC's CALL 770 sound routines
+// are blocking -- subsequent statements wait until the sound finishes.
+// soundWaitMult=1 reproduces that; tests set to 0 to skip waits.
+let soundWaitMult = 1.0;
+
+// Real-Apple-II baseline costs in milliseconds. These are HARDWARE
+// constants -- the only thing the user calibrates is emulatorScale.
+const AII_EMPTY_FOR_ITER_MS = 0.75;   // FOR I=1 TO N: NEXT  (empty body)
+const AII_PEEK_FOR_ITER_MS  = 1.5;    // FOR I=1 TO N: IF PEEK(...): NEXT
+const AII_SPEED150_CHAR_MS  = 5.5;    // Applesoft SPEED=150 per-char delay
+
+// Derived (recomputed in gameLoop init from emulatorScale).
+// Each maps to an explicit BASIC source location.
+let slowCharDelay = 0;   // BASIC SPEED=150 (lines 1190, 1270, 1450)
+let pauseBeatMs = 0;     // BASIC GOSUB 2720 -- FOR 1 TO 250 with PEEK
+let enterPauseMs = 0;    // BASIC line 1820 -- FOR 1 TO 100 (empty)
+
+// When true, out() and nl() buffer into pendingLines so drainLines can
+// synchronize text reveal with attached sounds. Game loop turns this on;
+// title/briefing leave it off so their text appears immediately.
+let bufferOutput = false;
 let lineWrap: HTMLElement | null = null;
 let pendingLines: HTMLElement[] = [];
 const lineSounds = new WeakMap<HTMLElement, {play: () => void, durationMs: number}[]>();
@@ -138,7 +152,7 @@ function out(text: string, modeOverride?: string): void {
   if (m === 'inverse') span.className = 'inv';
   else if (m === 'flash') span.className = 'fls';
   span.textContent = String(text);
-  if (lineDelay > 0) {
+  if (bufferOutput) {
     if (!lineWrap) {
       lineWrap = document.createElement('span');
       lineWrap.style.display = 'none';
@@ -151,7 +165,7 @@ function out(text: string, modeOverride?: string): void {
   }
 }
 function nl(): void {
-  if (lineDelay > 0) {
+  if (bufferOutput) {
     if (!lineWrap) {
       lineWrap = document.createElement('span');
       lineWrap.style.display = 'none';
@@ -166,6 +180,10 @@ function nl(): void {
   }
 }
 
+// BASIC PRINT is instant on the text screen, so text-only lines reveal
+// with no wait. CALL 770 sounds are synchronous on Apple II -- subsequent
+// PRINTs wait until the sound finishes, so a sound-bearing line holds for
+// its actual playback duration (scaled by soundWaitMult for testing).
 async function drainLines(): Promise<void> {
   while (pendingLines.length > 0) {
     const w = pendingLines.shift()!;
@@ -175,11 +193,9 @@ async function drainLines(): Promise<void> {
     if (sounds) {
       let soundMs = 0;
       for (const s of sounds) { s.play(); soundMs += s.durationMs; }
-      const base = soundLineDelay;
-      const extra = soundMs > base ? (soundMs - base) * soundWaitPct / 100 : 0;
-      await sleep(base + extra);
-    } else {
-      await sleep(lineDelay);
+      if (soundMs > 0 && soundWaitMult > 0) {
+        await sleep(soundMs * soundWaitMult);
+      }
     }
   }
   if (lineWrap) {
@@ -588,24 +604,10 @@ async function renderStatus(): Promise<void> {
   add('-'.repeat(40));
   if (curLine.childNodes.length > 0) lines.push(curLine);
 
-  // Reveal: line-by-line on room entry, instant otherwise.
-  const slow = statusSlow && lineDelay > 0;
+  // BASIC GOSUB 2510 prints the status block rapidly -- instant in our model.
   statusSlow = false;
   status.textContent = '';
-  if (slow) {
-    // Append all lines hidden so the element takes its full height,
-    // then reveal one at a time.
-    for (const ln of lines) {
-      ln.style.visibility = 'hidden';
-      status.appendChild(ln);
-    }
-    for (let i = 0; i < lines.length; i++) {
-      lines[i].style.visibility = '';
-      if (i < lines.length - 1) await sleep(lineDelay);
-    }
-  } else {
-    for (const ln of lines) status.appendChild(ln);
-  }
+  for (const ln of lines) status.appendChild(ln);
 }
 
 // -------- Map --------
@@ -1081,7 +1083,8 @@ function toneDuration(ab: number, ae: number, dn: number, cf: number): number {
   return total * 1000;
 }
 function queueSound(play: () => void, durationMs: number): void {
-  if (lineDelay === 0) { play(); return; }
+  // Pre-game (title/briefing): play sound immediately, no line to attach to.
+  if (!bufferOutput) { play(); return; }
   let target = pendingLines.length > 0 ? pendingLines[pendingLines.length - 1] : lineWrap;
   if (!target) {
     target = document.createElement('span');
@@ -2328,12 +2331,12 @@ function wireUi(): void {
 // -------- Main --------
 
 async function gameLoop(): Promise<void> {
-  lineDelay = (window as any).__lineDelay ?? 50;
-  soundLineDelay = (window as any).__soundLineDelay ?? 350;
-  soundWaitPct = (window as any).__soundWaitPct ?? 200;
-  slowCharDelay = (window as any).__slowCharDelay ?? 38;
-  pauseBeatMs = (window as any).__pauseBeatMs ?? 2400;
-  enterPauseMs = (window as any).__enterPauseMs ?? 500;
+  emulatorScale = (window as any).__emulatorScale ?? 6.5;
+  soundWaitMult = (window as any).__soundWaitMult ?? 1.0;
+  slowCharDelay = AII_SPEED150_CHAR_MS * emulatorScale;
+  pauseBeatMs   = 250 * AII_PEEK_FOR_ITER_MS  * emulatorScale;
+  enterPauseMs  = 100 * AII_EMPTY_FOR_ITER_MS * emulatorScale;
+  bufferOutput  = true;
   // Filter buttons to room-1 state BEFORE revealing the palette, so the
   // user doesn't see the full default-visible set flash for a frame.
   updatePalette();

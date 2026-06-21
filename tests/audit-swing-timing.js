@@ -43,7 +43,8 @@ async function audit(seed) {
   try {
     await g.sendCommand('SWING');
   } catch (e) {
-    clearInterval(pollIv);
+    pollIv.stop && pollIv.stop();
+    typeof pollIv === 'number' && clearInterval(pollIv);
     g.dom.window.close();
     return { seed, error: e.message };
   }
@@ -90,7 +91,12 @@ async function auditPrecise(seed) {
   let firstClearFreshness = null;
   let firstClearText = null;
 
-  const pollIv = setInterval(() => {
+  // The new unified model clears + re-prompts within microtasks, so a
+  // setInterval poll misses the brief textContent === '' window.
+  // MutationObserver fires synchronously on DOM ops, catching both
+  // incremental reveals (childList/attributes) and the textContent
+  // wipe (childList with removedNodes).
+  const observer = new g.dom.window.MutationObserver(() => {
     const now = Date.now();
     const current = g.messages.textContent;
     if (current !== lastText) {
@@ -102,13 +108,19 @@ async function auditPrecise(seed) {
       lastText = current;
       lastChangeAt = now;
     }
-  }, 5);
+  });
+  observer.observe(g.messages, {
+    childList: true, subtree: true, attributes: true, characterData: true,
+  });
+  // Sentinel so we never reference pollIv in catch.
+  const pollIv = { stop: () => observer.disconnect() };
 
   cmdSentAt = Date.now();
   try {
     await g.sendCommand('SWING');
   } catch (e) {
-    clearInterval(pollIv);
+    pollIv.stop && pollIv.stop();
+    typeof pollIv === 'number' && clearInterval(pollIv);
     g.dom.window.close();
     return { seed, error: e.message };
   }

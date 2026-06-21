@@ -5,6 +5,8 @@ taking over a project previously developed across many claude.ai sessions.
 The new session has **no memory** of prior conversations, so anything not
 captured here is lost. Read this carefully before making changes.
 
+Design checked at https://www.scullinsteel.com/apple2/ with the found source (see below).
+
 ---
 
 ## 1. What this project is

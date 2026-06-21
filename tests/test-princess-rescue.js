@@ -16,10 +16,10 @@ async function run() {
   await wait(40);
   document.getElementById('rescue-test-btn').click();
 
-  // Move east to find princess.
-  const lenBeforeMove = messages.textContent.length;
+  // Move east to find princess. enterRoom clears the messages pane on
+  // transition, so check current text directly rather than slicing.
   await sendCommand('MOVE EAST');
-  const afterMove = messages.textContent.slice(lenBeforeMove);
+  const afterMove = messages.textContent;
   const sawPrincessFound = afterMove.includes('YOU FOUND THE PRINCESS');
   console.log('Found princess on east move:', sawPrincessFound);
 
@@ -32,7 +32,8 @@ async function run() {
   // Walk back to the Hangar.
   await sendCommand('MOVE WEST');
 
-  // Take off.
+  // Take off. enterRoom on MOVE WEST cleared the pane, so capture after
+  // that; the takeoff sequence itself doesn't clear.
   const lenBeforeTakeoff = messages.textContent.length;
   await sendCommand('TAKE-OFF');
   await waitForText('FINAL SCORE', 5000);

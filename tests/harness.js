@@ -56,12 +56,9 @@ function createGame(seed, opts) {
       window.webkitAudioContext = FakeAudioContext;
       window.Math.random = seededRand;
       if (!opts.realTiming) {
-        window.__lineDelay = 50;        // fast drain for tests
-        window.__soundLineDelay = 50;  // no extra delay for sound lines
-        window.__soundWaitPct = 0;     // don't wait for sound durations
-        window.__slowCharDelay = 0;    // no char-by-char delay for tests
-        window.__pauseBeatMs = 0;      // no dramatic-beat pause for tests
-        window.__enterPauseMs = 0;     // no pre-clear pause for tests
+        // Unified model: one knob collapses all derived delays to zero.
+        window.__emulatorScale = 0;   // all derived delays = 0 for tests
+        window.__soundWaitMult = 0;   // skip synchronous sound waits
       }
       window.addEventListener('error', e => {
         errors.push('window.error: ' + (e.error
