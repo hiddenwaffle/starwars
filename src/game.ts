@@ -289,6 +289,11 @@ let pendingInputResolver: ((value: string) => void) | null = null;
 // this before injecting a MOVE command, so neither can satisfy the
 // pre-game name prompt or any in-game sub-prompt.
 let acceptingMoveInput = false;
+// True when the user's most recent command came from typing Enter in
+// an input field. Subsequent input prompts auto-focus so the user can
+// keep typing across room changes (which destroy the old input). Reset
+// to false whenever a command comes from a button/d-pad click.
+let keyboardInputMode = false;
 // When the CHARGE menu fires (after the player picks an option in every
 // visible column), it stashes the follower selections here so cmdCharge
 // can use them instead of awaiting interactive sub-prompts. Keyed by
@@ -312,7 +317,7 @@ async function input(prompt: string, autoFocus = false): Promise<string> {
     wrap.appendChild(inp);
     messages.appendChild(wrap);
     scrollMessagesToBottom();
-    if (autoFocus) requestAnimationFrame(() => inp.focus());
+    if (autoFocus || keyboardInputMode) requestAnimationFrame(() => inp.focus());
 
     const finish = (value: string) => {
       if (pendingInputResolver !== finish) return;
@@ -327,6 +332,7 @@ async function input(prompt: string, autoFocus = false): Promise<string> {
       if (e.key === 'Enter') {
         e.preventDefault();
         e.stopPropagation();
+        keyboardInputMode = true;
         finish((inp.value || '').toUpperCase().trim());
       } else if (e.key === 'Escape') {
         inp.blur();
@@ -337,6 +343,7 @@ async function input(prompt: string, autoFocus = false): Promise<string> {
 
 function injectCommand(cmd: string): void {
   if (pendingInputResolver) {
+    keyboardInputMode = false;
     pendingInputResolver(String(cmd).toUpperCase().trim());
   }
 }
