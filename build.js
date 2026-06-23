@@ -9,6 +9,10 @@ function inlineIntoHTML(js) {
   const output = template.replace('<!-- GAME_SCRIPT -->', '<script>\n' + js + '</script>');
   fs.mkdirSync(path.join(__dirname, 'dist'), { recursive: true });
   fs.writeFileSync(path.join(__dirname, 'dist', 'star-wars-1979.html'), output);
+  // GitHub Pages: same self-contained HTML at docs/index.html so the
+  // repo's Pages config can serve it from /docs as the site root.
+  fs.mkdirSync(path.join(__dirname, 'docs'), { recursive: true });
+  fs.writeFileSync(path.join(__dirname, 'docs', 'index.html'), output);
 }
 
 if (watching) {
@@ -24,7 +28,7 @@ if (watching) {
         build.onEnd(result => {
           if (result.errors.length > 0) return;
           inlineIntoHTML(result.outputFiles[0].text);
-          console.log('Rebuilt dist/star-wars-1979.html');
+          console.log('Rebuilt dist/star-wars-1979.html + docs/index.html');
         });
       }
     }]
@@ -42,5 +46,5 @@ if (watching) {
     target: 'es2020',
   });
   inlineIntoHTML(result.outputFiles[0].text);
-  console.log('Built dist/star-wars-1979.html');
+  console.log('Built dist/star-wars-1979.html + docs/index.html');
 }
