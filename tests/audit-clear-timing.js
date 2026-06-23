@@ -3,10 +3,13 @@
 // long enough to read.
 //
 // Approach:
-//   - Run createGame with realTiming so the in-game lineDelay /
-//     soundLineDelay / pauseBeat / enterPause use production defaults.
-//   - Poll messages.textContent at 5ms granularity. When it shrinks to
-//     '' (the enterRoom HOME clear), record a "clear event."
+//   - Run createGame with realTiming so the in-game timing constants
+//     (emulatorScale + soundWaitMult) use production defaults.
+//   - Watch messages with MutationObserver. When textContent goes to
+//     '' (the enterRoom HOME clear), record a "clear event." The
+//     unified model clears + re-prompts within microtasks, so a poll
+//     would miss the brief empty window -- MutationObserver fires
+//     synchronously on DOM ops.
 //   - Metric: time between the last text change and the clear. That's
 //     how long the freshest line was on screen. Earlier lines were
 //     visible longer, so this lower-bounds every line's visibility.
@@ -34,7 +37,7 @@ async function audit(seed, turns) {
   lastText = g.messages.textContent;
   lastChangeAt = Date.now();
 
-  const pollIv = setInterval(() => {
+  const observer = new g.dom.window.MutationObserver(() => {
     const now = Date.now();
     const current = g.messages.textContent;
     if (current !== lastText) {
@@ -48,7 +51,10 @@ async function audit(seed, turns) {
       lastText = current;
       lastChangeAt = now;
     }
-  }, 5);
+  });
+  observer.observe(g.messages, {
+    childList: true, subtree: true, attributes: true, characterData: true,
+  });
 
   for (let turn = 0; turn < turns; turn++) {
     if (g.errors.length > 0) break;
@@ -82,7 +88,7 @@ async function audit(seed, turns) {
     await g.wait(2500);
   }
 
-  clearInterval(pollIv);
+  observer.disconnect();
   g.dom.window.close();
   return events;
 }
