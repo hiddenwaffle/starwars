@@ -708,9 +708,11 @@
   var AII_EMPTY_FOR_ITER_MS = 0.75;
   var AII_PEEK_FOR_ITER_MS = 1.5;
   var AII_SPEED150_CHAR_MS = 5.5;
+  var AII_PRINT_LINE_MS = 5;
   var slowCharDelay = 0;
   var pauseBeatMs = 0;
   var enterPauseMs = 0;
+  var linePaceMs = 0;
   var bufferOutput = false;
   var lineWrap = null;
   var pendingLines = [];
@@ -759,6 +761,7 @@
       w.style.display = "";
       scrollMessagesToBottom();
       const sounds = lineSounds.get(w);
+      let waitMs = linePaceMs;
       if (sounds) {
         let soundMs = 0;
         for (const s of sounds) {
@@ -766,9 +769,10 @@
           soundMs += s.durationMs;
         }
         if (soundMs > 0 && soundWaitMult > 0) {
-          await sleep(soundMs * soundWaitMult);
+          waitMs = Math.max(waitMs, soundMs * soundWaitMult);
         }
       }
+      if (waitMs > 0) await sleep(waitMs);
     }
     if (lineWrap) {
       lineWrap.style.display = "";
@@ -900,29 +904,39 @@
       pendingInputResolver(String(cmd).toUpperCase().trim());
     }
   }
-  function anyKey(promptText) {
-    return new Promise((resolve) => {
-      out(promptText || "");
-      const cur = document.createElement("span");
-      cur.className = "term-cursor";
-      messages.appendChild(cur);
-      scrollMessagesToBottom();
-      const cleanup = () => {
-        document.removeEventListener("keydown", onKey);
-        messages.removeEventListener("click", onClick);
-        cur.remove();
-        nl();
-        resolve();
-      };
-      const onKey = (e) => {
-        if (["Shift", "Control", "Alt", "Meta", "CapsLock", "Tab"].includes(e.key)) return;
-        e.preventDefault();
-        cleanup();
-      };
-      const onClick = () => cleanup();
-      document.addEventListener("keydown", onKey);
-      messages.addEventListener("click", onClick);
+  async function anyKey(promptText) {
+    out(promptText || "");
+    let resolveKey;
+    let cleanedUp = false;
+    let cursorEl = null;
+    const keyPromise = new Promise((resolve) => {
+      resolveKey = resolve;
     });
+    const cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      document.removeEventListener("keydown", onKey);
+      messages.removeEventListener("click", onClick);
+      if (cursorEl) cursorEl.remove();
+      flushLines();
+      nl();
+      resolveKey();
+    };
+    const onKey = (e) => {
+      if (["Shift", "Control", "Alt", "Meta", "CapsLock", "Tab"].includes(e.key)) return;
+      e.preventDefault();
+      cleanup();
+    };
+    const onClick = () => cleanup();
+    document.addEventListener("keydown", onKey);
+    messages.addEventListener("click", onClick);
+    await Promise.race([drainLines(), keyPromise]);
+    if (cleanedUp) return;
+    cursorEl = document.createElement("span");
+    cursorEl.className = "term-cursor";
+    messages.appendChild(cursorEl);
+    scrollMessagesToBottom();
+    await keyPromise;
   }
   var Rd = [null, "MACHINERY", "CONTROL"];
   var Bd = [null, "TRACTOR BEAM", "POWER", "WEAPONRY"];
@@ -1197,9 +1211,21 @@
     }
     add("-".repeat(40));
     if (curLine.childNodes.length > 0) lines.push(curLine);
+    const slow = statusSlow && linePaceMs > 0;
     statusSlow = false;
     status.textContent = "";
-    for (const ln of lines) status.appendChild(ln);
+    if (slow) {
+      for (const ln of lines) {
+        ln.style.visibility = "hidden";
+        status.appendChild(ln);
+      }
+      for (let i = 0; i < lines.length; i++) {
+        lines[i].style.visibility = "";
+        if (i < lines.length - 1) await sleep(linePaceMs);
+      }
+    } else {
+      for (const ln of lines) status.appendChild(ln);
+    }
   }
   function renderMap() {
     while (mapSvg.firstChild) mapSvg.removeChild(mapSvg.firstChild);
@@ -2949,12 +2975,16 @@
     const paletteRestartBtn = document.getElementById("palette-restart-btn");
     if (paletteRestartBtn) wireRestart(paletteRestartBtn);
   }
-  async function gameLoop() {
+  function initTiming() {
     emulatorScale = window.__emulatorScale ?? 6.5;
     soundWaitMult = window.__soundWaitMult ?? 1;
     slowCharDelay = AII_SPEED150_CHAR_MS * emulatorScale;
     pauseBeatMs = 250 * AII_PEEK_FOR_ITER_MS * emulatorScale;
     enterPauseMs = 100 * AII_EMPTY_FOR_ITER_MS * emulatorScale;
+    linePaceMs = AII_PRINT_LINE_MS * emulatorScale;
+  }
+  async function gameLoop() {
+    initTiming();
     bufferOutput = true;
     updatePalette();
     palette.classList.remove("pre-game");
@@ -3001,6 +3031,7 @@
   async function main() {
     initGame();
     wireUi();
+    initTiming();
     await titleScreen();
     clearMessages();
     nl();
@@ -3008,6 +3039,7 @@
     nl();
     const name = await input("WHAT IS YOUR NAME", true);
     player.name = name || "CADET";
+    bufferOutput = true;
     await briefing();
     clearMessages();
     await gameLoop();

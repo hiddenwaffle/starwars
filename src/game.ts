@@ -125,12 +125,14 @@ let soundWaitMult = 1.0;
 const AII_EMPTY_FOR_ITER_MS = 0.75;   // FOR I=1 TO N: NEXT  (empty body)
 const AII_PEEK_FOR_ITER_MS  = 1.5;    // FOR I=1 TO N: IF PEEK(...): NEXT
 const AII_SPEED150_CHAR_MS  = 5.5;    // Applesoft SPEED=150 per-char delay
+const AII_PRINT_LINE_MS     = 5;      // Typical PRINT statement cost at SPEED=255
 
-// Derived (recomputed in gameLoop init from emulatorScale).
+// Derived (recomputed in initTiming() from emulatorScale).
 // Each maps to an explicit BASIC source location.
 let slowCharDelay = 0;   // BASIC SPEED=150 (lines 1190, 1270, 1450)
 let pauseBeatMs = 0;     // BASIC GOSUB 2720 -- FOR 1 TO 250 with PEEK
 let enterPauseMs = 0;    // BASIC line 1820 -- FOR 1 TO 100 (empty)
+let linePaceMs = 0;      // Per-line pacing -- one PRINT statement at SPEED=255
 
 // When true, out() and nl() buffer into pendingLines so drainLines can
 // synchronize text reveal with attached sounds. Game loop turns this on;
@@ -190,13 +192,18 @@ async function drainLines(): Promise<void> {
     w.style.display = '';
     scrollMessagesToBottom();
     const sounds = lineSounds.get(w);
+    // Base pacing models the per-PRINT cost on Apple ][ at SPEED=255.
+    // CALL 770 sounds are synchronous, so a sound-bearing line waits the
+    // larger of pace and actual sound duration.
+    let waitMs = linePaceMs;
     if (sounds) {
       let soundMs = 0;
       for (const s of sounds) { s.play(); soundMs += s.durationMs; }
       if (soundMs > 0 && soundWaitMult > 0) {
-        await sleep(soundMs * soundWaitMult);
+        waitMs = Math.max(waitMs, soundMs * soundWaitMult);
       }
     }
+    if (waitMs > 0) await sleep(waitMs);
   }
   if (lineWrap) {
     lineWrap.style.display = '';
@@ -372,29 +379,40 @@ function injectCommand(cmd: string): void {
   }
 }
 
-function anyKey(promptText?: string): Promise<void> {
-  return new Promise(resolve => {
-    out(promptText || '');
-    const cur = document.createElement('span');
-    cur.className = 'term-cursor';
-    messages.appendChild(cur);
-    scrollMessagesToBottom();
-    const cleanup = () => {
-      document.removeEventListener('keydown', onKey);
-      messages.removeEventListener('click', onClick);
-      cur.remove();
-      nl();
-      resolve();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (['Shift','Control','Alt','Meta','CapsLock','Tab'].includes(e.key)) return;
-      e.preventDefault();
-      cleanup();
-    };
-    const onClick = () => cleanup();
-    document.addEventListener('keydown', onKey);
-    messages.addEventListener('click', onClick);
-  });
+async function anyKey(promptText?: string): Promise<void> {
+  out(promptText || '');
+  // Register handlers FIRST so a fast keypress (e.g. tests racing the
+  // drain) isn't dropped. Then race drainLines against the keypress so
+  // the user can skip the paced reveal at any time.
+  let resolveKey: () => void;
+  let cleanedUp = false;
+  let cursorEl: HTMLElement | null = null;
+  const keyPromise = new Promise<void>(resolve => { resolveKey = resolve; });
+  const cleanup = () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    document.removeEventListener('keydown', onKey);
+    messages.removeEventListener('click', onClick);
+    if (cursorEl) cursorEl.remove();
+    flushLines();
+    nl();
+    resolveKey();
+  };
+  const onKey = (e: KeyboardEvent) => {
+    if (['Shift','Control','Alt','Meta','CapsLock','Tab'].includes(e.key)) return;
+    e.preventDefault();
+    cleanup();
+  };
+  const onClick = () => cleanup();
+  document.addEventListener('keydown', onKey);
+  messages.addEventListener('click', onClick);
+  await Promise.race([drainLines(), keyPromise]);
+  if (cleanedUp) return;
+  cursorEl = document.createElement('span');
+  cursorEl.className = 'term-cursor';
+  messages.appendChild(cursorEl);
+  scrollMessagesToBottom();
+  await keyPromise;
 }
 
 // -------- Game data --------
@@ -635,10 +653,25 @@ async function renderStatus(): Promise<void> {
   add('-'.repeat(40));
   if (curLine.childNodes.length > 0) lines.push(curLine);
 
-  // BASIC GOSUB 2510 prints the status block rapidly -- instant in our model.
+  // BASIC GOSUB 2510 prints the status block one line at a time -- each
+  // PRINT takes a few ms on Apple ][ at SPEED=255. On room change
+  // (statusSlow), reveal lines with the same per-line pacing as
+  // drainLines so the header doesn't pop in instantly.
+  const slow = statusSlow && linePaceMs > 0;
   statusSlow = false;
   status.textContent = '';
-  for (const ln of lines) status.appendChild(ln);
+  if (slow) {
+    for (const ln of lines) {
+      ln.style.visibility = 'hidden';
+      status.appendChild(ln);
+    }
+    for (let i = 0; i < lines.length; i++) {
+      lines[i].style.visibility = '';
+      if (i < lines.length - 1) await sleep(linePaceMs);
+    }
+  } else {
+    for (const ln of lines) status.appendChild(ln);
+  }
 }
 
 // -------- Map --------
@@ -2361,12 +2394,17 @@ function wireUi(): void {
 
 // -------- Main --------
 
-async function gameLoop(): Promise<void> {
+function initTiming(): void {
   emulatorScale = (window as any).__emulatorScale ?? 6.5;
   soundWaitMult = (window as any).__soundWaitMult ?? 1.0;
   slowCharDelay = AII_SPEED150_CHAR_MS * emulatorScale;
   pauseBeatMs   = 250 * AII_PEEK_FOR_ITER_MS  * emulatorScale;
   enterPauseMs  = 100 * AII_EMPTY_FOR_ITER_MS * emulatorScale;
+  linePaceMs    = AII_PRINT_LINE_MS  * emulatorScale;
+}
+
+async function gameLoop(): Promise<void> {
+  initTiming();
   bufferOutput  = true;
   // Filter buttons to room-1 state BEFORE revealing the palette, so the
   // user doesn't see the full default-visible set flash for a frame.
@@ -2443,11 +2481,15 @@ async function gameLoop(): Promise<void> {
 async function main(): Promise<void> {
   initGame();
   wireUi();
+  // Compute timing constants early so briefing/anyKey can pace text.
+  initTiming();
   await titleScreen();
   clearMessages();
   nl(); nl(); nl();
   const name = await input('WHAT IS YOUR NAME', true);
   player.name = name || 'CADET';
+  // From here on, text is buffered so drainLines can pace it.
+  bufferOutput = true;
   await briefing();
   clearMessages();
   await gameLoop();
