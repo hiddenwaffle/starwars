@@ -9,7 +9,14 @@ const watching = process.argv.includes('--watch');
 // committed and deployed via GitHub Pages.
 function inlineIntoHTML(js, { docs }) {
   const template = fs.readFileSync(path.join(__dirname, 'src', 'index.html'), 'utf8');
-  const output = template.replace('<!-- GAME_SCRIPT -->', '<script>\n' + js + '</script>');
+  // Inline the GitHub mark as a base64 data URI so the build stays
+  // self-contained (single-file HTML, no external image fetches).
+  const iconBase64 = fs.readFileSync(
+    path.join(__dirname, 'assets', 'GitHub-Mark-64px.png')
+  ).toString('base64');
+  const iconDataUri = 'data:image/png;base64,' + iconBase64;
+  let output = template.replace('<!-- GAME_SCRIPT -->', '<script>\n' + js + '</script>');
+  output = output.replace('<!-- GITHUB_ICON -->', iconDataUri);
   fs.mkdirSync(path.join(__dirname, 'dist'), { recursive: true });
   fs.writeFileSync(path.join(__dirname, 'dist', 'star-wars-1979.html'), output);
   if (docs) {

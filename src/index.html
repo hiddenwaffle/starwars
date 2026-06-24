@@ -538,9 +538,22 @@
     color: var(--phos);
     border-color: var(--phos);
   }
+  /* Match the sample.html spacing: 8px from the bottom, 12px from the right. */
+  #source {
+    position: fixed;
+    bottom: 8px;
+    right: 12px;
+  }
+  #source img {
+    display: block;
+    width: 32px;
+    height: 32px;
+    /* Flatten the octocat's midtones to pure black (alpha preserved). */
+    filter: brightness(0);
+  }
   .pi-toggle {
     position: fixed;
-    right: 8px;
+    right: 56px;     /* shift left of the GitHub source icon */
     bottom: 6px;
     color: var(--phos-faint);
     opacity: 0.5;
@@ -686,6 +699,12 @@
     </div>
   </footer>
   <div class="pi-toggle" aria-hidden="true">π</div>
+  </div>
+
+  <div id="source">
+    <a href="https://github.com/hiddenwaffle/starwars" target="_blank" rel="noopener noreferrer">
+      <img src="<!-- GITHUB_ICON -->" alt="View source on GitHub">
+    </a>
   </div>
 
 <!-- GAME_SCRIPT -->
