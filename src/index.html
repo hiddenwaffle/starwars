@@ -327,9 +327,13 @@
     caret-color: var(--phos);
     text-shadow: inherit;
   }
-  /* When typing into the prompt, the palette's per-button key-hint
-     underlines hide -- visual cue that keystrokes are being captured
-     by the input rather than firing palette shortcuts. */
+  /* When typing into the prompt, the terminal frame brightens and the
+     palette's per-button key-hint underlines hide -- visual cues that
+     keystrokes are being captured by the input rather than firing
+     palette shortcuts. */
+  body:has(.term-input:focus) .term-frame {
+    border-color: #ffffff;
+  }
   body:has(.term-input:focus) .key-hint {
     border-bottom-color: transparent;
   }
