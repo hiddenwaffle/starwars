@@ -278,17 +278,6 @@ function showMapTooltip(targetEl: Element, text: string): void {
 function hideMapTooltip(): void {
   if (mapTooltip) mapTooltip.classList.remove('active');
 }
-function sceneBreak(): void {
-  if (!messages.firstChild) return;
-  // Leading newline mirrors the trailing empty line produced by the next
-  // prompt's leading "\n" (BASIC's PRINT before INPUT). Without it the
-  // break sits tight against the previous text but loose above the prompt.
-  messages.appendChild(document.createTextNode('\n'));
-  const br = document.createElement('div');
-  br.className = 'scene-break';
-  messages.appendChild(br);
-  scrollMessagesToBottom();
-}
 
 let pendingInputResolver: ((value: string) => void) | null = null;
 // True only while gameLoop is awaiting a top-level "WHAT IS YOUR COMMAND"
@@ -1228,7 +1217,7 @@ async function enterRoom(): Promise<void> {
   const hadPending = pendingLines.length > 0 || lineWrap !== null;
   flushLines();
   if (hadPending && enterPauseMs > 0) await sleep(enterPauseMs);
-  // Next renderStatus() call will reveal lines with delay.
+  // Next renderStatus() paces the status block line-by-line (linePaceMs).
   statusSlow = true;
   // BASIC HOME equivalent: clear the messages pane on room change.
   messages.textContent = '';

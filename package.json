@@ -7,7 +7,7 @@
     "build": "node build.js",
     "dev": "node build.js --watch",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && node tests/run-all.js"
+    "test": "node build.js --no-docs && node tests/run-all.js"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",

@@ -70,7 +70,7 @@ npm install
 npm run build      # one-shot build; writes dist/star-wars-1979.html AND docs/index.html
 npm run dev        # esbuild watch mode; writes dist/star-wars-1979.html only
 npm run typecheck  # tsc --noEmit
-npm test           # build + run all tests
+npm test           # build (dist only, via --no-docs) + run all tests
 ```
 
 The build output is a single self-contained HTML file with all CSS and JS
@@ -82,8 +82,9 @@ inlined. Open it directly in a browser; no server required.
   hard-coded in `tests/harness.js`), and you point a browser at it for
   local play.
 - `docs/index.html` — only on `npm run build` (one-shot production build).
-  `npm run dev` skips this path so in-progress work doesn't get
-  accidentally committed and deployed via GitHub Pages.
+  `npm run dev` and `npm test` both skip this path (the latter passes
+  `--no-docs`) so in-progress work and test rebuilds don't accidentally
+  get committed and deployed via GitHub Pages.
 
 ---
 
@@ -126,6 +127,7 @@ source changes should appear on the live site.
 | `tests/audit-*.js` | Out-of-band auditing scripts (timing measurement). Not part of `npm test`. |
 | `tests/run-all.js` | Test runner — executes all active tests concurrently. |
 | `tests/harness.js` | Shared jsdom bootstrap for tests; exposes `createGame(seed, opts)`. |
+| `assets/` | Static images inlined into the build: `demo_screen.svg` for the README, `GitHub-Mark-64px.png` for the in-app "view source" corner icon (base64-embedded by `build.js`). |
 
 Most tests run in 1-3 seconds; the fuzzers (`test-aggressive`,
 `test-targeted`) can take up to a minute. `tests/run-all.js` uses a 180s
@@ -167,20 +169,36 @@ Character indexing follows BASIC's `C(P, X)` array, 1-indexed:
 "lost" (princess in detention cell, wookie at start, follower separated by
 `ORDER WAIT`). Vader at room 0 means he's dead.
 
-**Output buffering.** While the game loop is running (`bufferOutput = true`),
-`out()` and `nl()` accumulate text into a `pendingLines` queue rather than
-writing directly to the messages pane. `drainLines()` reveals the queue at
-the right moment — typically just before the next input prompt — and waits
-for any attached sound's actual playback duration before continuing
-(BASIC's `CALL 770` is synchronous on Apple ][, so this matches its
-semantics). Before the game loop (`titleScreen`, `briefing`, `anyKey`),
-`bufferOutput` is `false` and text appears immediately.
+**Output buffering.** While `bufferOutput = true` (set in `main()` just
+before `briefing()` and reaffirmed in `gameLoop()`), `out()` and `nl()`
+accumulate text into a `pendingLines` queue rather than writing directly
+to the messages pane. `drainLines()` reveals the queue at the right moment
+— typically just before the next input prompt — paces each line with
+`linePaceMs` (modeling a real Apple ][ PRINT statement at SPEED=255), and
+waits for any attached sound's actual playback duration (BASIC's `CALL
+770` is synchronous on Apple ][, so this matches its semantics). During
+`titleScreen` (and any pre-name UI), `bufferOutput` is `false` and text
+appears immediately. `anyKey()` registers its keypress handler *before*
+draining and then `Promise.race`s the drain against the keypress, so the
+player can either watch the briefing pace in or skip it with any key.
 
 **Focus retention.** A `keyboardInputMode` flag tracks whether the player's
 most recent command came from typing Enter in the input field. When true,
 subsequent input prompts auto-focus so the player can keep typing across
 room-change clears. Button / d-pad clicks set the flag to false so touch /
 mouse users don't get a surprise focus.
+
+**Input visual state.** The inline `<input>` hides the native caret
+(`caret-color: transparent`) and renders a CSS-styled block cursor in a
+sibling `.term-cursor` span, matching the briefing screens. JS in
+`input()` sizes the input to the typed value's width (`calc(N*ch + N*0.02em)`
+to account for the inherited letter-spacing) and shifts the block via
+negative `marginLeft` to track `selectionStart` — so arrow keys, click,
+backspace, and select-and-replace all move the visible cursor. Whenever
+the input is focused, `body:has(.term-input:focus)` triggers two
+indicators via pure CSS: the `.term-frame` border brightens slightly and
+every palette `.key-hint` underline hides, signaling that keystrokes are
+going to the prompt rather than firing palette shortcuts.
 
 ---
 
@@ -195,31 +213,30 @@ costs are fixed hardware constants:
 const AII_EMPTY_FOR_ITER_MS = 0.75;   // FOR I=1 TO N: NEXT  (empty body)
 const AII_PEEK_FOR_ITER_MS  = 1.5;    // FOR I=1 TO N: IF PEEK(...): NEXT
 const AII_SPEED150_CHAR_MS  = 5.5;    // Applesoft SPEED=150 per-char delay
+const AII_PRINT_LINE_MS     = 5;      // Typical PRINT statement cost at SPEED=255
 ```
 
 Each in-game delay maps to an explicit BASIC source location and is
-recomputed at `gameLoop()` start:
+recomputed by `initTiming()` (called from `main()` early so briefing pacing
+works, and again from `gameLoop()` for paranoia):
 
 | Constant | Formula | BASIC source |
 |----------|---------|--------------|
 | `slowCharDelay` | `AII_SPEED150_CHAR_MS × scale` | `SPEED=150` typing in lines 1190, 1270, 1450 (rope toss, swing, Falcon takeoff). |
 | `pauseBeatMs` | `250 × AII_PEEK_FOR_ITER_MS × scale` | `GOSUB 2720` — the `FOR 1 TO 250: IF PEEK(...): NEXT` skip-on-keypress loop called after rope-held, princess-found, friendly-wookie. |
 | `enterPauseMs` | `100 × AII_EMPTY_FOR_ITER_MS × scale` | Line 1820 `FOR X = 1 TO 100: NEXT` — the brief hold of the prior command's text ("OK", "OK, SCATTER") before `HOME` clears the screen on room change. |
+| `linePaceMs` | `AII_PRINT_LINE_MS × scale` | Per-line drain pacing — models the cost of a single `PRINT` statement at SPEED=255 (BASIC line, screen scroll, COUT loop). Applied by `drainLines()` between buffered lines and by `renderStatus()` between status lines when `statusSlow` is set. |
 
 The slow-text reveal (`slowOut`) uses `slowCharDelay` per character. The
 `pauseBeat()` helper drains pending lines then sleeps `pauseBeatMs`. The
 `enterRoom()` clear waits `enterPauseMs` first if the prior command left
-buffered text.
+buffered text. Sound-bearing lines wait `max(linePaceMs, soundMs × soundWaitMult)`.
 
-**Sound waits** stand apart from this scaling. BASIC's `CALL 770` blocks
-until the sound finishes; the port mirrors that by waiting for the actual
-Web Audio playback duration (computed by `toneDuration()` from the same
-`(AB, AE, DN, CF)` parameters). A `soundWaitMult` multiplier scales this
-(1.0 in production, 0 in tests to skip waits).
-
-**Text reveal between lines** is instant — `lineDelay` is gone. Apple ][
-`PRINT` writes to memory-mapped text screen, which has no inter-line cost,
-so the port matches that.
+**Sound waits** are otherwise outside this scaling. BASIC's `CALL 770`
+blocks until the sound finishes; the port mirrors that by waiting for the
+actual Web Audio playback duration (computed by `toneDuration()` from the
+same `(AB, AE, DN, CF)` parameters). A `soundWaitMult` multiplier scales
+this (1.0 in production, 0 in tests to skip waits).
 
 To tune the overall feel, change `emulatorScale`. Each scenario's relative
 timing is preserved automatically. New BASIC primitives can be added by
@@ -604,14 +621,6 @@ The active suite (13 tests, run via `npm test`):
 `tests/run-all.js` runs them concurrently with a 180-second per-test
 timeout. The fuzzers are the longest; everything else completes in a few
 seconds.
-
-Three other files in `tests/` are **not** part of the suite (`run-all.js`
-skips them):
-
-- `test-rescue-and-kill.js` — informational random-walker fuzzer; can't
-  reliably reach detention cells.
-- `test-restart.js` — outdated diagnostic.
-- `test-visibility.js` — diagnostic-only, no real assertions.
 
 ### Audits
 

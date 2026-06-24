@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const watching = process.argv.includes('--watch');
+const noDocs = process.argv.includes('--no-docs');
 
 // `docs` is true only for one-shot production builds. Watch mode keeps
 // docs/index.html stable so in-progress work doesn't get accidentally
@@ -88,6 +89,10 @@ if (watching) {
     write: false,
     target: 'es2020',
   });
-  inlineIntoHTML(result.outputFiles[0].text, { docs: true });
-  console.log('Built dist/star-wars-1979.html + docs/index.html');
+  inlineIntoHTML(result.outputFiles[0].text, { docs: !noDocs });
+  console.log(
+    noDocs
+      ? 'Built dist/star-wars-1979.html'
+      : 'Built dist/star-wars-1979.html + docs/index.html'
+  );
 }
