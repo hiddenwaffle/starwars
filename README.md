@@ -1,4 +1,4 @@
-# Star Wars 1979 — JavaScript Port
+# Star Wars 1979 Text Adventure Game (Port)
 
 A JavaScript / HTML vibe-port of
 [Donald Brown's 1979 Applesoft BASIC text adventure **Star Wars** for the Apple \]\[](https://www.facebook.com/groups/5251478676/posts/10156900565763677/).
