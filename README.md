@@ -8,7 +8,9 @@ preserved.
 
 ## Play in browser: [hiddenwaffle.github.io/starwars/](https://hiddenwaffle.github.io/starwars/)
 
+<div align="center">
 <img src="assets/demo_screen.svg" width="400" alt="Demo screen: status pane shows TRACTOR BEAM MACHINERY ROOM with two soldiers; messages pane shows recent combat and a prompt with ATTACK SABRE typed.">
+</div>
 
 
 What you get:
