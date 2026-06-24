@@ -8,23 +8,8 @@ preserved.
 
 ## Play in browser: [hiddenwaffle.github.io/starwars/](https://hiddenwaffle.github.io/starwars/)
 
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" role="img" aria-label="Demo screen: status pane shows TRACTOR BEAM MACHINERY ROOM with two soldiers; messages pane shows recent combat and a prompt with ATTACK SABRE typed.">
-  <rect width="400" height="300" fill="#c8e6c8"/>
-  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#0a0e0a" xml:space="preserve">
-    <text x="16" y="26">       TRACTOR BEAM MACHINERY ROOM</text>
-    <text x="16" y="46">DOORS OPEN TO NORTH WEST</text>
-    <text x="16" y="66">CARRYING--SABRE ON 1 SLD. 1 BLST.</text>
-    <text x="16" y="86">IN ROOM--2 SOLDIERS</text>
-    <text x="16" y="106">EQUIPMENT--UNDAMAGED</text>
-    <text x="16" y="126">----------------------------------------</text>
-    <text x="16" y="166">WHAT IS YOUR COMMAND? SABRE ON</text>
-    <text x="16" y="186">A SOLDIER FIRES AT CADET</text>
-    <text x="16" y="206"> A MISS!</text>
-    <text x="16" y="226">A SOLDIER FIRES AT CADET</text>
-    <text x="16" y="246"> A MISS!</text>
-    <text x="16" y="286">WHAT IS YOUR COMMAND? ATTACK SABRE█</text>
-  </g>
-</svg>
+<img src="assets/demo_screen.svg" width="400" alt="Demo screen: status pane shows TRACTOR BEAM MACHINERY ROOM with two soldiers; messages pane shows recent combat and a prompt with ATTACK SABRE typed.">
+
 
 What you get:
 
