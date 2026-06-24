@@ -7,7 +7,7 @@ The original is a
 [313-line BASIC program](https://archive.org/details/a2_cple_Apple_oids_Outpost_Star_Blaster_Star_Wars_Taxman).
 
 This port is a single-page web app with the same turn-based command loop, sound effects,
-and intentional Apple ][ quirks preserved (mostly) accurately.
+and Apple ][ quirks preserved (mostly) accurately.
 
 ## Play in browser: [hiddenwaffle.github.io/starwars/](https://hiddenwaffle.github.io/starwars/)
 
