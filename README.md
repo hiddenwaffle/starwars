@@ -1,13 +1,13 @@
 # Star Wars 1979 — JavaScript Port
 
-A JavaScript / HTML port of
-[Donald Brown's 1979 Applesoft BASIC text adventure **Star Wars** for the Apple ][](https://www.facebook.com/groups/5251478676/posts/10156900565763677/)
-.
+A JavaScript / HTML vibe-port of
+[Donald Brown's 1979 Applesoft BASIC text adventure **Star Wars** for the Apple \]\[](https://www.facebook.com/groups/5251478676/posts/10156900565763677/).
+
 The original is a
-[313-line BASIC program](https://archive.org/details/a2_cple_Apple_oids_Outpost_Star_Blaster_Star_Wars_Taxman)
-;
-this vibe-port is a single-page web app with the same
-turn-based command loop, sound effects, and intentional Apple ][ quirks preserved (mostly) accurately.
+[313-line BASIC program](https://archive.org/details/a2_cple_Apple_oids_Outpost_Star_Blaster_Star_Wars_Taxman).
+
+This port is a single-page web app with the same turn-based command loop, sound effects,
+and intentional Apple ][ quirks preserved (mostly) accurately.
 
 ## Play in browser: [hiddenwaffle.github.io/starwars/](https://hiddenwaffle.github.io/starwars/)
 
