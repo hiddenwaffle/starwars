@@ -315,8 +315,32 @@ async function input(prompt: string, autoFocus = false): Promise<string> {
     inp.autocapitalize = 'characters';
     inp.spellcheck = false;
     wrap.appendChild(inp);
+    // Block cursor sibling -- CSS shows it only while the input has focus.
+    const cur = document.createElement('span');
+    cur.className = 'term-cursor';
+    wrap.appendChild(cur);
     messages.appendChild(wrap);
     scrollMessagesToBottom();
+    // Size the input to typed length and position the block cursor at
+    // the native caret -- so arrow keys, click, backspace, etc. all
+    // move the visible block. The cursor sits naturally after the
+    // input; a negative margin pulls it back to selectionStart.
+    // Each char takes 1ch + the inherited letter-spacing (0.02em from
+    // .messages), so both the width and margin include the em term to
+    // avoid cumulative overflow that scrolls typed text out of view.
+    const LS_EM = 0.02;
+    const updateCursor = () => {
+      const caretPos = inp.selectionStart || 0;
+      const renderedLen = Math.max(1, inp.value.length);
+      inp.style.width = `calc(${renderedLen}ch + ${renderedLen * LS_EM}em)`;
+      const offset = caretPos - renderedLen;
+      cur.style.marginLeft = `calc(${offset}ch + ${offset * LS_EM}em - 1px)`;
+    };
+    inp.addEventListener('input', updateCursor);
+    inp.addEventListener('keyup', updateCursor);
+    inp.addEventListener('click', updateCursor);
+    inp.addEventListener('focus', updateCursor);
+    updateCursor();
     if (autoFocus || keyboardInputMode) requestAnimationFrame(() => inp.focus());
 
     const finish = (value: string) => {

@@ -323,9 +323,25 @@
     letter-spacing: inherit;
     outline: none;
     padding: 0;
-    width: 16ch;
-    caret-color: var(--phos);
+    /* JS sets width to value.length ch on each keystroke so the
+       block-cursor sibling sits flush at the end of the typed text.
+       min-width keeps the empty input clickable. */
+    width: 0;
+    min-width: 1ch;
+    /* Hide the native caret; the .term-cursor span next to the input
+       renders the same blinking block as the briefing screens. */
+    caret-color: transparent;
     text-shadow: inherit;
+  }
+  .term-input + .term-cursor {
+    display: none;
+    /* Full character cell -- the block occupies the same horizontal
+       slot as the letter it's currently over (incl. letter-spacing).
+       The +1px extends slightly right to avoid a hairline gap. */
+    width: calc(1ch + 0.02em + 1px);
+  }
+  .term-input:focus + .term-cursor {
+    display: inline-block;
   }
   /* When typing into the prompt, the terminal frame brightens and the
      palette's per-button key-hint underlines hide -- visual cues that
@@ -345,6 +361,10 @@
     vertical-align: text-bottom;
     animation: blnk 1s steps(1, end) infinite;
     margin-left: 2px;
+    /* Lift slightly so the block centers on uppercase glyphs
+       (which is most of the game text) instead of sitting at the
+       descender line and looking low. */
+    transform: translateY(-0.1em);
   }
   @keyframes blnk { 0%, 49.9% { opacity: 1; } 50%, 100% { opacity: 0; } }
 
@@ -835,8 +855,24 @@
       inp.autocapitalize = "characters";
       inp.spellcheck = false;
       wrap.appendChild(inp);
+      const cur = document.createElement("span");
+      cur.className = "term-cursor";
+      wrap.appendChild(cur);
       messages.appendChild(wrap);
       scrollMessagesToBottom();
+      const LS_EM = 0.02;
+      const updateCursor = () => {
+        const caretPos = inp.selectionStart || 0;
+        const renderedLen = Math.max(1, inp.value.length);
+        inp.style.width = `calc(${renderedLen}ch + ${renderedLen * LS_EM}em)`;
+        const offset = caretPos - renderedLen;
+        cur.style.marginLeft = `calc(${offset}ch + ${offset * LS_EM}em - 1px)`;
+      };
+      inp.addEventListener("input", updateCursor);
+      inp.addEventListener("keyup", updateCursor);
+      inp.addEventListener("click", updateCursor);
+      inp.addEventListener("focus", updateCursor);
+      updateCursor();
       if (autoFocus || keyboardInputMode) requestAnimationFrame(() => inp.focus());
       const finish = (value) => {
         if (pendingInputResolver !== finish) return;
