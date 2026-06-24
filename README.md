@@ -1,10 +1,13 @@
 # Star Wars 1979 — JavaScript Port
 
-A single-file JavaScript / HTML port of Donald Brown's 1979 Applesoft BASIC
-text adventure **Star Wars** for the Apple ][. The original is a 313-line
-BASIC program; this port is a polished single-page web app with the same
-turn-based command loop, sound effects, and intentional Apple ][ quirks
-preserved.
+A JavaScript / HTML port of
+[Donald Brown's 1979 Applesoft BASIC text adventure **Star Wars** for the Apple ][](https://www.facebook.com/groups/5251478676/posts/10156900565763677/)
+.
+The original is a
+[313-line BASIC program](https://archive.org/details/a2_cple_Apple_oids_Outpost_Star_Blaster_Star_Wars_Taxman)
+;
+this port is a single-page web app with the same
+turn-based command loop, sound effects, and intentional Apple ][ quirks preserved (mostly) accurately.
 
 ## Play in browser: [hiddenwaffle.github.io/starwars/](https://hiddenwaffle.github.io/starwars/)
 
@@ -14,24 +17,15 @@ preserved.
 </a>
 </div>
 
-
-What you get:
-
-- The full turn-based command loop, dispatched against the original BASIC's
-  short-prefix verb table (`M`, `A`, `GE`, `SABR`, etc.).
-- A live SVG map with fog-of-war and clickable rooms.
-- A status panel, a palette of clickable command buttons, and an arrow d-pad
-  for movement.
+- Traditional typed input
+- A live map
+- A status panel, a palette of clickable command buttons with keyboard shortcuts, and an arrow d-pad
+  for movement
 - Sound effects synthesized via Web Audio at the same `(AB, AE, DN, CF)`
   parameters as BASIC's `CALL 770` speaker routine.
-- A unified timing model that scales all gameplay delays from a single
-  "emulator speed" knob, so the feel of the port stays consistent with how
-  the original BASIC runs on a real Apple ][.
-- Endgame scoring breakdown and a two-click confirm RESTART.
-- A hidden dev panel (toggled by the small `π` glyph in the bottom-right
-  corner) with debug helpers.
+- Endgame scoring breakdown
 
-The port is **BASIC-faithful** — comments throughout cite BASIC line
+The port is mostly **BASIC-faithful** — comments throughout cite BASIC line
 numbers, and mechanics that *look* like bugs in the BASIC are preserved on
 purpose (e.g., sabre damage `A1` = player.hp, so the sabre degrades as the
 player takes damage; the soldier-defense pulls from `S(S9, 1)` even after a
