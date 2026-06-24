@@ -4,15 +4,18 @@ const path = require('path');
 
 const watching = process.argv.includes('--watch');
 
-function inlineIntoHTML(js) {
+// `docs` is true only for one-shot production builds. Watch mode keeps
+// docs/index.html stable so in-progress work doesn't get accidentally
+// committed and deployed via GitHub Pages.
+function inlineIntoHTML(js, { docs }) {
   const template = fs.readFileSync(path.join(__dirname, 'src', 'index.html'), 'utf8');
   const output = template.replace('<!-- GAME_SCRIPT -->', '<script>\n' + js + '</script>');
   fs.mkdirSync(path.join(__dirname, 'dist'), { recursive: true });
   fs.writeFileSync(path.join(__dirname, 'dist', 'star-wars-1979.html'), output);
-  // GitHub Pages: same self-contained HTML at docs/index.html so the
-  // repo's Pages config can serve it from /docs as the site root.
-  fs.mkdirSync(path.join(__dirname, 'docs'), { recursive: true });
-  fs.writeFileSync(path.join(__dirname, 'docs', 'index.html'), output);
+  if (docs) {
+    fs.mkdirSync(path.join(__dirname, 'docs'), { recursive: true });
+    fs.writeFileSync(path.join(__dirname, 'docs', 'index.html'), output);
+  }
 }
 
 if (watching) {
@@ -29,8 +32,8 @@ if (watching) {
         build.onEnd(result => {
           if (result.errors.length > 0) return;
           lastJs = result.outputFiles[0].text;
-          inlineIntoHTML(lastJs);
-          console.log('Rebuilt (game.ts change)');
+          inlineIntoHTML(lastJs, { docs: false });
+          console.log('Rebuilt dist/star-wars-1979.html (game.ts change)');
         });
       }
     }]
@@ -48,8 +51,8 @@ if (watching) {
       if (!lastJs) return;
       const attempt = (retried) => {
         try {
-          inlineIntoHTML(lastJs);
-          console.log('Rebuilt (index.html change)');
+          inlineIntoHTML(lastJs, { docs: false });
+          console.log('Rebuilt dist/star-wars-1979.html (index.html change)');
         } catch (e) {
           if (e.code === 'ENOENT' && !retried) {
             setTimeout(() => attempt(true), 80);
@@ -78,6 +81,6 @@ if (watching) {
     write: false,
     target: 'es2020',
   });
-  inlineIntoHTML(result.outputFiles[0].text);
+  inlineIntoHTML(result.outputFiles[0].text, { docs: true });
   console.log('Built dist/star-wars-1979.html + docs/index.html');
 }

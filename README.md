@@ -67,8 +67,8 @@ kill; FOR-loop "scope-shadowing" escape from the title screen).
 
 ```sh
 npm install
-npm run build      # produces dist/star-wars-1979.html and docs/index.html
-npm run dev        # esbuild watch mode; rebuilds on file change
+npm run build      # one-shot build; writes dist/star-wars-1979.html AND docs/index.html
+npm run dev        # esbuild watch mode; writes dist/star-wars-1979.html only
 npm run typecheck  # tsc --noEmit
 npm test           # build + run all tests
 ```
@@ -76,11 +76,14 @@ npm test           # build + run all tests
 The build output is a single self-contained HTML file with all CSS and JS
 inlined. Open it directly in a browser; no server required.
 
-`build.js` writes the same content to two paths:
+`build.js` writes to one or two paths depending on mode:
 
-- `dist/star-wars-1979.html` — what the tests load (file path is hard-coded
-  in `tests/harness.js`).
-- `docs/index.html` — the path GitHub Pages serves as the site root.
+- `dist/star-wars-1979.html` — always. The tests load this file (path
+  hard-coded in `tests/harness.js`), and you point a browser at it for
+  local play.
+- `docs/index.html` — only on `npm run build` (one-shot production build).
+  `npm run dev` skips this path so in-progress work doesn't get
+  accidentally committed and deployed via GitHub Pages.
 
 ---
 
