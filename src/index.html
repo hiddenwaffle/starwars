@@ -327,6 +327,12 @@
     caret-color: var(--phos);
     text-shadow: inherit;
   }
+  /* When typing into the prompt, the palette's per-button key-hint
+     underlines hide -- visual cue that keystrokes are being captured
+     by the input rather than firing palette shortcuts. */
+  body:has(.term-input:focus) .key-hint {
+    border-bottom-color: transparent;
+  }
   .term-cursor {
     display: inline-block;
     width: 0.5em;
