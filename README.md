@@ -6,6 +6,23 @@ BASIC program; this port is a polished single-page web app with the same
 turn-based command loop, sound effects, and intentional Apple ][ quirks
 preserved.
 
+```
+       TRACTOR BEAM MACHINERY ROOM
+DOORS OPEN TO NORTH WEST
+CARRYING--SABRE ON 1 SLD. 1 BLST.
+IN ROOM--2 SOLDIERS
+EQUIPMENT--UNDAMAGED
+----------------------------------------
+
+WHAT IS YOUR COMMAND? SABRE ON
+A SOLDIER FIRES AT CADET
+ A MISS!
+A SOLDIER FIRES AT CADET
+ A MISS!
+
+WHAT IS YOUR COMMAND? ATTACK SABRE█
+```
+
 What you get:
 
 - The full turn-based command loop, dispatched against the original BASIC's
