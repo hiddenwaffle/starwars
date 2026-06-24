@@ -2250,7 +2250,11 @@ function wireUi(): void {
   // ATTACK SABRE rather than toggling the sabre.
   document.addEventListener('keydown', e => {
     if ((document.activeElement?.tagName ?? '') === 'INPUT') return;
-    if (messages.querySelector('.term-cursor')) return;
+    // Briefing's "press any key" cursor is a direct child of messages;
+    // the block-cursor next to an input lives inside a wrap span. Match
+    // only the direct-child case so an unfocused input prompt doesn't
+    // suppress palette shortcuts.
+    if (messages.querySelector(':scope > .term-cursor')) return;
     if (e.key === 'Escape') {
       document.querySelectorAll('.menu.open').forEach(m => m.classList.remove('open'));
       return;
